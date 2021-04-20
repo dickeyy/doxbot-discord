@@ -118,6 +118,7 @@ async def help_cmd(ctx):
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
     for pre in prefix:
+        
         embed = discord.Embed(title="DoxBot Help", description=f"For more info on any command simply do `{pre}help [command]`. Example: `{pre}help dox`", color=0xff6666)
         embed.add_field(name="Music:", value="`play [song]`, `music`", inline=False)
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
