@@ -38,10 +38,10 @@ load_dotenv()
 
 # database stuff
 db = mysql.connector.connect(
-    host="na01-sql.pebblehost.com",
-    user="customer_179919_doxbotdb",
-    password="4OLXC34F2~I#tbNZO7sN",
-    database="customer_179919_doxbotdb"
+    host=os.getenv("HOST"),
+    user=os.getenv("USER"),
+    password=os.getenv("PASSWORD"),
+    database=os.getenv("DATABASE")
 )
 cursor = db.cursor(buffered=True)
 
