@@ -122,8 +122,8 @@ async def help_cmd(ctx):
         embed = discord.Embed(title="DoxBot Help", description=f"For more info on any command simply do `{pre}help [command]`. Example: `{pre}help dox`", color=0xff6666)
         embed.add_field(name="Music:", value="`play [song]`, `music`", inline=False)
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
-        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `fish`, `shop`, `buy [shop number]`, `gift [user] [amount]`, `highlow`", inline=False)
-        embed.add_field(name="Utility:", value="`botidea [idea]`, `stats`, `setprefix [prefix]`, `prefix`, `setcountchannel [channel]`, `countinfo`, `setwordchan [channel]`, `wordinfo`, `poll [option 1] or [option 2]`, `cstats [command]`, `lfg [game]`, `tictactoe [player 1] [player2]`, `coinflip`, `avatar [user]`, `support`, `ping`, `server`, `vote`, `invite`, `math`, `donate`, `afk [reason]`, `translate [to lang] [message]`, `languages`, `weather [location]`, `shorturl [url]`, `qr [url]`, `rcolor`", inline=False)
+        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `gift [user] [amount]`, `highlow`, `richest`", inline=False)
+        embed.add_field(name="Utility:", value="`botidea [idea]`, `bugreport [bug]`, `stats`, `setprefix [prefix]`, `prefix`, `setcountchannel [channel]`, `countinfo`, `setwordchan [channel]`, `wordinfo`, `poll [option 1] or [option 2]`, `cstats [command]`, `lfg [game]`, `tictactoe [player 1] [player2]`, `coinflip`, `avatar [user]`, `support`, `ping`, `server`, `vote`, `invite`, `math`, `donate`, `afk [reason]`, `translate [to lang] [message]`, `languages`, `weather [location]`, `shorturl [url]`, `qr [url]`, `rcolor`", inline=False)
         embed.add_field(name="Fun:", value="`dox [optional user]`, `doesntexist`, `pp [user]`, `hate [user]`, `love [user]`, `set [socialmedia] [username]`, `socialsinfo`, `meme`, `virgin [user]`, `reddit [subreddit]`, `nsfw`, `iq [user]`, `embarrass [user]`, `8ball [question]`, `dog`, `cat`, `gif [search]`, `dadjoke`, `affirmation`, `say [message]`, `roast [optional user]`, `wanted [optional user]`, `todayinhistory`, `lovetest [user]`, `sex [user]`")
         embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
         embed.timestamp = datetime.datetime.utcnow()
@@ -138,6 +138,36 @@ async def help_cmd(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Help -- {cupGuild} by {cupUser}")
+
+@help_cmd.command(name='bugreport')
+async def bugreport_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Bugreport Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}bugreport [bug]", value="Use this command to report any bugs you find. A Dev / Mod will DM you and likely ask you for a screenshot of the bug", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='slots')
+async def slots_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Slots Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}slots [amount > 10]", value="Use this to play the slot machine! The amount bet must me more than 10 Dox Coins (DXC). If you get 2 emojis in a row, your prize is how much you bet times 1.5, if you get 3 emojis in a row (jackpot) your prize is however much you bet times 3", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='richest')
+async def gift_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Richest Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}richest", value="Use this to see who has the most Dox Coins in the server", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
 
 @help_cmd.command(name='highlow')
 async def highlow_subcom(ctx):
@@ -1426,7 +1456,7 @@ async def stats(ctx):
     embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
     embed.add_field(name="Servers:", value=scount, inline=True)
     embed.add_field(name="Users:", value=users, inline=True)
-    embed.add_field(name="Commands:", value="107", inline=True)
+    embed.add_field(name="Commands:", value="109", inline=True)
     embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
@@ -4556,6 +4586,42 @@ async def botidea(ctx, *, idea):
     cupUser = ctx.author
     print(f"Botidea -- {cupGuild} by {cupUser}")
 
+# bug report
+@bot.command()
+async def bugreport(ctx, *, bug):
+    bugChannel = bot.get_channel(834218634887954472)
+    userID = ctx.author.id
+    userName = ctx.author.name
+    user = ctx.author
+    pfp = ctx.author.avatar_url
+    # set unique note id
+    bugIDIN = random.randint(100000, 999999)
+    cursor.execute("SELECT bug_id FROM bug_report")
+    idCheck = cursor.fetchall()
+    if bugIDIN == idCheck:
+        bugIDIN = random.randint(100000, 999999)
+    else:
+        pass
+    cursor.execute(f"INSERT INTO `bug_report` (`user_id`, `bug_id`, `bug`, `status`) VALUES ('{userID}', '{bugIDIN}', '{bug}', 'Active')")
+    db.commit()
+    embed1 = discord.Embed(title="User Bug Report:", color=discord.Color.red())
+    embed1.set_author(name=f"{user} ID: {userID}", icon_url=pfp)
+    embed1.add_field(name=f"Bug ID: #{bugIDIN}", value=bug)
+    embed1.timestamp = datetime.datetime.utcnow()
+    await bugChannel.send(embed=embed1)
+
+    embed2 = discord.Embed(title="Thank you for reporting the bug!", description="For help join the support server [HERE](https://discord.gg/zs7UwgBZb9)", color=discord.Color.green())
+    await ctx.send(embed=embed2)
+    cursor.execute("SELECT used FROM commands WHERE name = 'bugreport'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'botidea'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Botidea -- {cupGuild} by {cupUser}")
+
 # apporve
 @bot.command()
 async def biapprove(ctx, ideaid, **reason):
@@ -4949,10 +5015,14 @@ async def balance(ctx, member: discord.Member = None):
         cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
         balUF = cursor.fetchone()
         if balUF == None:
-            await ctx.send(f"**{user}** You **0** Dox Coins")
+            embed = discord.Embed(title=f"{user}'s Balance:", description=f"You have <:simp_coin:824720566241853460> **0** DXC", color=0xff6666)
+            embed.timestamp = datetime.datetime.utcnow()
+            await ctx.send(embed=embed)
         else:
             for bal in balUF:
-                await ctx.send(f"**{user}** You have **{bal}** Dox Coins")
+                embed = discord.Embed(title=f"{user}'s Balance:", description=f"You have <:simp_coin:824720566241853460> **{bal}** DXC", color=0xff6666)
+                embed.timestamp = datetime.datetime.utcnow()
+                await ctx.send(embed=embed)
     else:
         user = member
         userID = member.id
@@ -5102,7 +5172,8 @@ async def daily(ctx):
 async def daily_error(ctx, error):
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Slow it down!", description="You can only do that once a day! In {:.2f}s".format(error.retry_after))
+        cooldown = error.retry_after / 3600
+        embed = discord.Embed(title="Slow it down!", description="You can do that in **{:.0f}** hours".format(cooldown))
         await ctx.send(embed=embed)
 
 # fish
@@ -5377,11 +5448,11 @@ async def gift_error(ctx, error):
 
 # high low
 @bot.command()
-@commands.cooldown(1, 20, commands.BucketType.member)
+@commands.cooldown(1, 15, commands.BucketType.member)
 async def highlow(ctx):
     num = random.randint(0, 100)
     hint = random.randint(0, 100)
-    earn = random.randint(20, 200)
+    earn = random.randint(20, 300)
     guildID = ctx.guild.id
     userID = ctx.author.id
 
@@ -5481,6 +5552,148 @@ async def highlow_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         embed = discord.Embed(title="Hey hey hey!", description="Take a breather! Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
+
+# richest
+@bot.command()
+async def richest(ctx):
+    guildID = ctx.guild.id
+    userID = ctx.author.id
+    guildName = ctx.guild.name
+
+    cursor.execute(f"SELECT MAX(coins) FROM econ WHERE guild_id = {guildID}")
+    coinsUF = cursor.fetchone()
+
+    if coinsUF == None:
+        coins = 0
+        await ctx.send("No one in this server has any Dox Coins")
+        return
+    elif coinsUF != None:
+        for coins in coinsUF:
+            cursor.execute(f"SELECT user_id FROM econ WHERE coins = {coins} AND guild_id = {guildID}")
+            richUserUF = cursor.fetchone()
+            for richUser in richUserUF:
+                userRich = richUser
+                embed = discord.Embed(title=f"Richest User in {guildName}", description=f"**<:simp_coin:824720566241853460> {coins} DXC** - <@{userRich}>", color=discord.Color.gold())
+                embed.timestamp = datetime.datetime.utcnow()
+                embed.set_footer(text=f"{ctx.author} \u200b")
+                await ctx.send(embed=embed)
+    cursor.execute("SELECT used FROM commands WHERE name = 'richest'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'richest'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Richest -- {cupGuild} by {cupUser}")
+
+# slot machines
+@bot.command(aliases=['slot', 'slotmachine'])
+@commands.cooldown(1, 3, commands.BucketType.member)
+async def slots(ctx, amount: int):
+    guildID = ctx.guild.id
+    userID = ctx.author.id
+    userName = ctx.author
+
+    if amount < 10:
+        await ctx.send("You must bet at least **10** DXC")
+        return
+    else:
+        pass
+
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balCheckUF = cursor.fetchone()
+
+    if balCheckUF == None:
+        await ctx.send("You have no Dox Coins to bet!")
+        return
+    else:
+        for balCheck in balCheckUF:
+            pass
+
+    if balCheck < amount:
+        await ctx.send(f"You don't have {amount} DXC! You have **{balCheck}** DXC")
+        return
+    else:
+        pass
+
+    emoji_list = ['🎉','💎','🏆','💯','👖','🛒']
+    emoji1 = random.choice(emoji_list)
+    emoji2 = random.choice(emoji_list)
+    emoji3 = random.choice(emoji_list)
+    
+    win = 1
+
+    if emoji1 == emoji2 and emoji3 == emoji1:
+        win = 3
+    
+    if emoji1 == emoji2 and emoji3 != emoji1:
+        win = 2
+    
+    if emoji2 == emoji3 and emoji1 != emoji2:
+        win = 2
+
+    if win == 3:
+        embed = discord.Embed(title=f"{userName}'s Slots", description=f"**>** {emoji1} {emoji2} {emoji3} **<**", color=discord.Color.gold())
+        cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+        balUF = cursor.fetchone()
+        for bal in balUF:
+            pass
+        coins = amount * 3
+        bal += coins
+        cursor.execute(f"UPDATE `econ` SET coins = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
+        db.commit()
+        embed.add_field(name="Jackpot!", value=f"Winnings: {coins}")
+        embed.set_footer(text=f"{ctx.author} | Bal: {bal} DXC")
+        pass
+
+    elif win == 2:
+        embed = discord.Embed(title=f"{userName}'s Slots", description=f"**>** {emoji1} {emoji2} {emoji3} **<**", color=discord.Color.green())
+        cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+        balUF = cursor.fetchone()
+        for bal in balUF:
+            pass
+        coins = amount * 1.5
+        bal += coins
+        cursor.execute(f"UPDATE `econ` SET coins = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
+        db.commit()
+        embed.add_field(name="You won!", value=f"Winnings: {coins}")
+        embed.set_footer(text=f"{ctx.author} | Bal: {bal} DXC")
+        pass
+
+    elif win == 1:
+        embed = discord.Embed(title=f"{userName}'s Slots", description=f"**>** {emoji1} {emoji2} {emoji3} **<**", color=discord.Color.red())
+        cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+        balUF = cursor.fetchone()
+        for bal in balUF:
+            pass
+        bal -= amount
+        cursor.execute(f"UPDATE `econ` SET coins = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
+        db.commit()
+        embed.add_field(name="You lost!", value=f"Losings: {amount}")
+        embed.set_footer(text=f"{ctx.author} | Bal: {bal} DXC")
+        pass
+    
+    await ctx.send(embed=embed)
+    cursor.execute("SELECT used FROM commands WHERE name = 'slots'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'slots'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Slots -- {cupGuild} by {cupUser}")
+
+
+@slots.error
+async def slot_error(ctx, error):
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title="Hey hey hey!", description="Take a breather! Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include an amount of coins to gamble!")
 
 # Run bot
 keep_alive()
