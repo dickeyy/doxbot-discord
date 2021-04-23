@@ -33,6 +33,7 @@ from discord import DMChannel
 from thispersondoesnotexist import get_online_person
 from dotenv import load_dotenv
 from web import keep_alive
+import statcord
 
 load_dotenv()
 
@@ -67,6 +68,15 @@ bot.remove_command('help')
 async def on_ready():
   my_channel = bot.get_channel(801363821390200853)
   await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="$help - doxbot.xyz"))
+
+# statcord api
+StatCordkey = os.getenv('STATCORDAPI')
+StatCordapi = statcord.Client(bot,StatCordkey)
+StatCordapi.start_loop()
+
+@bot.event
+async def on_command(ctx):
+    StatCordapi.command_run(ctx)
 
 # Dox Command
 @bot.command()
@@ -5969,6 +5979,13 @@ async def setstarboard(ctx, channel: discord.TextChannel):
     cupUser = ctx.author
     print(f"Setstarboard -- {cupGuild} by {cupUser}")
 
+@setstarboard.error
+async def setstarboard_error(ctx, error):
+    print(error)
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a text channel")
 
 # set thresh
 @bot.command()
@@ -6004,6 +6021,13 @@ async def starthresh(ctx, thresh: int):
     cupUser = ctx.author
     print(f"Starthresh -- {cupGuild} by {cupUser}")
 
+@starthresh.error
+async def starthresh_error(ctx, error):
+    print(error)
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a number!")
 
 # detect react
 @bot.event

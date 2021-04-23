@@ -22,3 +22,4 @@ datetime
 thispersondoesnotexist
 python-dotenv
 flask
+statcord.py
