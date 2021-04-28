@@ -32,8 +32,9 @@ from datetime import date
 from discord import DMChannel
 from thispersondoesnotexist import get_online_person
 from dotenv import load_dotenv
-from web import keep_alive
+from web import web_server
 import statcord
+import tweepy
 
 load_dotenv()
 
@@ -60,14 +61,14 @@ def get_prefix(bot, message):
 intents = discord.Intents.default()
 intents.members = True
 owner_id = 489264179472236557
-bot = commands.Bot(command_prefix = get_prefix, intents=intents)
+bot = commands.Bot(command_prefix = get_prefix, intents=intents, owner_id=489264179472236557)
 bot.remove_command('help')
 
 # Run startup stuff
 @bot.event
 async def on_ready():
   my_channel = bot.get_channel(801363821390200853)
-  await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="$help - doxbot.xyz"))
+  await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="$help - doxbot.xyz"))
 
 # statcord api
 StatCordkey = os.getenv('STATCORDAPI')
@@ -78,8 +79,37 @@ StatCordapi.start_loop()
 async def on_command(ctx):
     StatCordapi.command_run(ctx)
 
+# twitter bot
+consumer_key = os.getenv("TWITKEY")
+consumer_secret = os.getenv("TWITSEC")
+access_token = os.getenv("TWITTOKEN")
+access_token_secret = os.getenv("TWITTOKSEC")
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+
+auth.set_access_token(access_token, access_token_secret)
+
+TwitApi = tweepy.API(auth)
+
+@tasks.loop(hours=24, reconnect=True)
+async def pub_tweet():
+    cursor.execute("SELECT number FROM twitterbot")
+    number = cursor.fetchall()
+    for number1 in number:
+        for number_tweet in number1:
+            TwitApi.update_status(number_tweet)
+            number_tweet += 1
+            cursor.execute(f"UPDATE `twitterbot` SET `number`= {number_tweet}")
+            db.commit()
+            number_tweet -= 1
+            print(f'Tweeted -- {number_tweet}')
+
+# cooldown messages 
+coolDown_list = ['Chill Tf Out', 'CHILLLLL', 'Stop.', 'Take a Breather', 'ok', 'Spamming commands is cringe', 'Slow it down', 'Wee-Woo-Wee-Woo Pull Over', 'No smile', '-_-', 'Why tho...', 'Yikes U Should Like Not', 'Slow it Cowboy', 'Take a Break Bro', 'Go Touch Some Grass']
+
 # Dox Command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def dox(ctx, member: discord.Member=None):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'dox'")
@@ -122,8 +152,17 @@ async def dox(ctx, member: discord.Member=None):
     cupUser = ctx.author
     print(f"Dox -- {cupGuild} by {cupUser}")
 
+@dox.error
+async def dox_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # help command 3.0
 @bot.group(name='help', invoke_without_command=True)
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def help_cmd(ctx):
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
@@ -134,6 +173,7 @@ async def help_cmd(ctx):
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
         embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
         embed.add_field(name="Starboard:", value="`setstarboard [channel]`, `starthresh [number]`, `highstar`", inline=False)
+        embed.add_field(name="Server Stats:", value="`statsetup`, `statsreset`, `removecounter [counter]`, `addcounter [counter]`, `counters`", inline=False)
         embed.add_field(name="Utility:", value="`botidea [idea]`, `bugreport [bug]`, `stats`, `setprefix [prefix]`, `prefix`, `setcountchannel [channel]`, `countinfo`, `setwordchan [channel]`, `wordinfo`, `poll [option 1] or [option 2]`, `cstats [command]`, `lfg [game]`, `tictactoe [player 1] [player2]`, `coinflip`, `avatar [user]`, `support`, `ping`, `server`, `vote`, `invite`, `math`, `donate`, `afk [reason]`, `translate [to lang] [message]`, `languages`, `weather [location]`, `shorturl [url]`, `qr [url]`, `rcolor`", inline=False)
         embed.add_field(name="Fun:", value="`dox [optional user]`, `doesntexist`, `pp [user]`, `hate [user]`, `love [user]`, `set [socialmedia] [username]`, `socialsinfo`, `meme`, `virgin [user]`, `reddit [subreddit]`, `nsfw`, `iq [user]`, `embarrass [user]`, `8ball [question]`, `dog`, `cat`, `gif [search]`, `dadjoke`, `affirmation`, `say [message]`, `roast [optional user]`, `wanted [optional user]`, `todayinhistory`, `lovetest [user]`, `sex [user]`")
         embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
@@ -149,6 +189,56 @@ async def help_cmd(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Help -- {cupGuild} by {cupUser}")
+
+@help_cmd.command(name='counters')
+async def counters_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Counters Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}counters", value=f"Use this command to get a list of all available counters, and how to spell the counters for the {pre}addcounter and {pre}removecounter commands", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='addcounter')
+async def addcounter_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Addcounter Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}addcounter [counter]", value=f"Use this command to add a Server Stats Counter. Please make sure the [counter] is spelled exactly as it appears in {pre}counters", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='removecounter')
+async def removecounter_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Removecounter Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}removecounter", value=f"Use this command to remove a specific Server Stats Counter. Please make sure the [counter] is spelled exactly as it appears in {pre}counters", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='statsreset')
+async def statsreset_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Statsreset Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}statsreset", value="Use this command to delete all Server Stats Counters", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='statsetup')
+async def statsetup_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Statsetup Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}statsetup", value="Use this command to setup the Server Stats Counters", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
 
 @help_cmd.command(name='highstar')
 async def highstar_subcom(ctx):
@@ -966,6 +1056,7 @@ async def disabledcmds_subcom(ctx):
 
 # Ping Command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def ping(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'ping'")
@@ -985,8 +1076,17 @@ async def ping(ctx):
     cupUser = ctx.author
     print(f"Ping -- {cupGuild} by {cupUser}")
 
+@ping.error
+async def ping_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # support Command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def support(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'support'")
@@ -1006,8 +1106,17 @@ async def support(ctx):
         cupUser = ctx.author
         print(f"Support -- {cupGuild} by {cupUser}")
 
+@support.error
+async def support_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Embarrass Command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def embarrass(ctx, member : discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'embarrass'")
@@ -1032,12 +1141,17 @@ async def embarrass(ctx, member : discord.Member):
 # Embarrass Error Handler
 @embarrass.error
 async def embarrass_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please mention someone to embarrass")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention someone to embarrass")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # Chad Command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def chad(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'chad'")
@@ -1057,8 +1171,17 @@ async def chad(ctx):
         cupUser = ctx.author
         print(f"Chad -- {cupGuild} by {cupUser}")
 
+@chad.error
+async def chad_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Virgin Command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def virgin(ctx, member : discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'virgin'")
@@ -1083,12 +1206,17 @@ async def virgin(ctx, member : discord.Member):
 # Virgin Error Handler
 @virgin.error
 async def virgin_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please mention someone to check their virginity")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention someone to check their virginity")
+    if isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # We hate...
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def hate(ctx, member : discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'hate'")
@@ -1111,12 +1239,17 @@ async def hate(ctx, member : discord.Member):
 # Hate Error Handler
 @hate.error
 async def hate_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please mention someone to hate")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention someone to Hate them!")
+    if isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # We love...
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def love(ctx, member : discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'love'")
@@ -1139,12 +1272,17 @@ async def love(ctx, member : discord.Member):
 # Love error handler
 @love.error
 async def love_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please mention someone to love")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention someone to Love them!")
+    if isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # PP size command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def pp(ctx, member : discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'pp'")
@@ -1169,9 +1307,13 @@ async def pp(ctx, member : discord.Member):
 # pp Error Handler
 @pp.error
 async def pp_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please mention someone to check their PP size")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention someone to check their pp!")
+    if isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # Tic Tac Toe 
 player1 = ""
@@ -1194,6 +1336,7 @@ winningConditions = [
 
 # Start Game command
 @bot.command(aliases=['ttt'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def tictactoe(ctx, p1: discord.Member, p2: discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'tictactoe'")
@@ -1253,6 +1396,7 @@ async def tictactoe(ctx, p1: discord.Member, p2: discord.Member):
 
 # place command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def place(ctx, pos : int):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'place'")
@@ -1328,6 +1472,7 @@ def checkWinner(winningConditions, mark):
 
 # End game command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def endgame(ctx):
     guildID = ctx.guild.id
@@ -1356,27 +1501,43 @@ async def endgame(ctx):
 # Error Handlers for ttt
 @endgame.error
 async def engame_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingPermissions):
-    await ctx.send("You do not have permission to use this command, ask an admin to end the game!")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use this command, ask an admin to end the game!")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 @tictactoe.error
 async def tictactoe_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please mention 2 players for this command.")
-  elif isinstance(error, commands.BadArgument):
-    await ctx.send("Pease make sure to mention/ping players.")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention 2 players for this command.")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("Pease make sure to mention/ping players.")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 
 @place.error
 async def place_error(ctx, error):
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("Please enter a position you would like to mark.")
-  elif isinstance(error, commands.BadArgument):
-    await ctx.send("Pease make sure to enter integer.")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please enter a position you would like to mark.")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("Pease make sure to enter integer.")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 
 # tictactoe help
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def ttthelp(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'ttthelp'")
@@ -1404,8 +1565,17 @@ async def ttthelp(ctx):
         cupUser = ctx.author
         print(f"TTTHelp -- {cupGuild} by {cupUser}")
 
+@ttthelp.error
+async def ttthelp_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # ttt template
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def tictemplate(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'tictemplate'")
@@ -1448,8 +1618,17 @@ async def tictemplate(ctx):
         cupUser = ctx.author
         print(f"TTTTemplate -- {cupGuild} by {cupUser}")
 
+@tictemplate.error
+async def tictemplate_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # server info 
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def server(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'server'")
@@ -1486,8 +1665,17 @@ async def server(ctx):
         cupUser = ctx.author
         print(f"Server -- {cupGuild} by {cupUser}")
 
+@server.error
+async def server_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Stats command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def stats(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'stats'")
@@ -1507,7 +1695,7 @@ async def stats(ctx):
     embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
     embed.add_field(name="Servers:", value=scount, inline=True)
     embed.add_field(name="Users:", value=users, inline=True)
-    embed.add_field(name="Commands:", value="112", inline=True)
+    embed.add_field(name="Commands:", value="117", inline=True)
     embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
@@ -1525,8 +1713,17 @@ async def stats(ctx):
         cupUser = ctx.author
         print(f"Stats -- {cupGuild} by {cupUser}")
 
+@stats.error
+async def stats_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # vote
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def vote(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'vote'")
@@ -1549,8 +1746,17 @@ async def vote(ctx):
         cupUser = ctx.author
         print(f"Vote -- {cupGuild} by {cupUser}")
 
+@vote.error
+async def vote_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Looking for game command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def lfg(ctx, message):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'lfg'")
@@ -1572,8 +1778,17 @@ async def lfg(ctx, message):
         cupUser = ctx.author
         print(f"LFG -- {cupGuild} by {cupUser}")
 
+@lfg.error
+async def lfg_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # iq command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def iq(ctx, member: discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'iq'")
@@ -1600,12 +1815,17 @@ async def iq(ctx, member: discord.Member):
 
 @iq.error
 async def iq_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send('Please mention someone to test their IQ')
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send('Please mention someone to test their IQ')
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # avatar command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def avatar(ctx, member: discord.Member = None):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'avatar'")
@@ -1633,6 +1853,14 @@ async def avatar(ctx, member: discord.Member = None):
         cupUser = ctx.author
         print(f"Avatar -- {cupGuild} by {cupUser}")
 
+@avatar.error
+async def avatar_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 def add(n: float, n2: float):
 	return n + n2
 
@@ -1653,6 +1881,7 @@ def mult(n: float, n2: float):
 
 # math commands
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathadd(ctx, x: float, y: float):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathadd'")
@@ -1676,7 +1905,16 @@ async def mathadd(ctx, x: float, y: float):
     except:
         pass
 
+@mathadd.error
+async def mathadd_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathsub(ctx, x: float, y: float):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathsub'")
@@ -1700,7 +1938,16 @@ async def mathsub(ctx, x: float, y: float):
     except:
         pass
 
+@mathsub.error
+async def mathsub_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathrando(ctx, x: int, y: int):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathrando'")
@@ -1724,7 +1971,16 @@ async def mathrando(ctx, x: int, y: int):
     except:
         pass
 
+@mathrando.error
+async def mathrando_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathdiv(ctx, x: float, y: float):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathdiv'")
@@ -1748,7 +2004,16 @@ async def mathdiv(ctx, x: float, y: float):
     except:
         pass
 
+@mathdiv.error
+async def mathdiv_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathmulti(ctx, x: float, y: float):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathmulti'")
@@ -1772,7 +2037,16 @@ async def mathmulti(ctx, x: float, y: float):
     except:
         pass
 
+@mathmulti.error
+async def mathmulti_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathsqrt(ctx, x: float):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathsqrt'")
@@ -1796,7 +2070,16 @@ async def mathsqrt(ctx, x: float):
     except:
         pass
 
+@mathsqrt.error
+async def mathsqrt_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def mathhelp(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'mathhelp'")
@@ -1826,8 +2109,17 @@ async def mathhelp(ctx):
         cupUser = ctx.author
         print(f"MathHelp -- {cupGuild} by {cupUser}")
 
+@mathhelp.error
+async def mathhelp_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # invite command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def invite(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'invite'")
@@ -1848,8 +2140,17 @@ async def invite(ctx):
         cupUser = ctx.author
         print(f"Invite -- {cupGuild} by {cupUser}")
 
+@invite.error
+async def invite_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # meme command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def meme(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'meme'")
@@ -1880,8 +2181,17 @@ async def meme(ctx):
         cupUser = ctx.author
         print(f"Meme -- {cupGuild} by {cupUser}")
 
+@meme.error
+async def meme_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # NSFW command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def nsfw(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'wordinfo'")
@@ -1929,9 +2239,17 @@ async def nsfw(ctx):
         print(f"NSFW -- {cupGuild} by {cupUser}")
 
 # nsfw error handler
+@nsfw.error
+async def nsfw_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # specific reddit search command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def reddit(ctx, reddit):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'reddit'")
@@ -1969,8 +2287,19 @@ async def reddit(ctx, reddit):
         cupUser = ctx.author
         print(f"Reddit -- {cupGuild} by {cupUser}")
 
+@reddit.error
+async def reddit_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please mention a subreddit")
+
 # coin flip
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def coinflip(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'coinflip'")
@@ -1995,8 +2324,17 @@ async def coinflip(ctx):
         cupUser = ctx.author
         print(f"CoinFlip -- {cupGuild} by {cupUser}")
 
+@coinflip.error
+async def coinflip_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # donate command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def donate(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'donate'")
@@ -2018,8 +2356,17 @@ async def donate(ctx):
         cupUser = ctx.author
         print(f"Donate -- {cupGuild} by {cupUser}")
 
+@donate.error
+async def donate_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # poll command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def poll(ctx, *, args):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'poll'")
@@ -2054,6 +2401,16 @@ async def poll(ctx, *, args):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Poll -- {cupGuild} by {cupUser}")
+
+@poll.error
+async def poll_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredPermissions):
+        await ctx.send("Please follow the poll syntax: `poll [option 1] or [option 2]` make sure you include the 'OR'")
 
 # music stuff
 # Silence useless bug reports messages
@@ -2331,6 +2688,7 @@ class Music(commands.Cog):
         await ctx.send('Error: **{}**'.format(str(error)))
 
     @commands.command(name='join', invoke_without_subcommand=True)
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _join(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'join'")
@@ -2359,6 +2717,7 @@ class Music(commands.Cog):
           print(f"Join -- {cupGuild} by {cupUser}")
 
     @commands.command(name='summon')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     @commands.has_permissions(manage_guild=True)
     async def _summon(self, ctx: commands.Context, *, channel: discord.VoiceChannel = None):
         guildID = ctx.guild.id
@@ -2395,6 +2754,7 @@ class Music(commands.Cog):
           print(f"Summon -- {cupGuild} by {cupUser}")
 
     @commands.command(name='leave', aliases=['disconnect'])
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _leave(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'leave'")
@@ -2422,6 +2782,7 @@ class Music(commands.Cog):
           print(f"Leave -- {cupGuild} by {cupUser}")
 
     @commands.command(name='volume')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _volume(self, ctx: commands.Context, *, volume: int):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'volume'")
@@ -2451,6 +2812,7 @@ class Music(commands.Cog):
           print(f"Volume -- {cupGuild} by {cupUser}")
 
     @commands.command(name='now', aliases=['current', 'playing'])
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _now(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'now'")
@@ -2473,6 +2835,7 @@ class Music(commands.Cog):
         print(f"Now -- {cupGuild} by {cupUser}")
 
     @commands.command(name='pause')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _pause(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'pause'")
@@ -2497,6 +2860,7 @@ class Music(commands.Cog):
         print(f"Pause -- {cupGuild} by {cupUser}")
 
     @commands.command(name='resume')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _resume(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'resume'")
@@ -2521,6 +2885,7 @@ class Music(commands.Cog):
         print(f"Resume -- {cupGuild} by {cupUser}")
 
     @commands.command(name='stop')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _stop(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'stop'")
@@ -2547,6 +2912,7 @@ class Music(commands.Cog):
         print(f"Stop -- {cupGuild} by {cupUser}")
 
     @commands.command(name='skip')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _skip(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'skip'")
@@ -2584,6 +2950,7 @@ class Music(commands.Cog):
         print(f"Skip -- {cupGuild} by {cupUser}")
 
     @commands.command(name='queue')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _queue(self, ctx: commands.Context, *, page: int = 1):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'queue'")
@@ -2624,6 +2991,7 @@ class Music(commands.Cog):
         print(f"Queue -- {cupGuild} by {cupUser}")
 
     @commands.command(name='shuffle')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _shuffle(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'suffle'")
@@ -2650,6 +3018,7 @@ class Music(commands.Cog):
         print(f"Shuffle -- {cupGuild} by {cupUser}")
 
     @commands.command(name='remove')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _remove(self, ctx: commands.Context, index: int):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'remove'")
@@ -2676,6 +3045,7 @@ class Music(commands.Cog):
         print(f"Remove -- {cupGuild} by {cupUser}")
 
     @commands.command(name='loop')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _loop(self, ctx: commands.Context):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'loop'")
@@ -2700,6 +3070,7 @@ class Music(commands.Cog):
         print(f"Loop -- {cupGuild} by {cupUser}")
 
     @commands.command(name='play')
+    @commands.cooldown(1,1,commands.BucketType.guild)
     async def _play(self, ctx: commands.Context, *, search: str):
         guildID = ctx.guild.id
         cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'play'")
@@ -2750,11 +3121,11 @@ class Music(commands.Cog):
             if ctx.voice_client.channel != ctx.author.voice.channel:
                 raise commands.CommandError('Bot is already in a voice channel.')
 
-
 bot.add_cog(Music(bot))
 
 # music help
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def musichelp(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'musichelp'")
@@ -2793,8 +3164,17 @@ async def musichelp(ctx):
         cupUser = ctx.author
         print(f"MusicHelp -- {cupGuild} by {cupUser}")
 
+@musichelp.error
+async def musichelp_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # afk command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def afk(ctx, *, args):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'afk'")
@@ -2818,12 +3198,17 @@ async def afk(ctx, *, args):
 
 @afk.error
 async def afk_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("An AFK message is required")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("An AFK message is required")
 
 # 8ball command
 @bot.command(aliases=['8ball'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def eightball(ctx, *, args):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = '8ball'")
@@ -2853,12 +3238,17 @@ async def eightball(ctx, *, args):
 
 @eightball.error
 async def eightball_error(ctx, error):
-  print(error)
-  if isinstance(error, commands.MissingRequiredArgument):
-    await ctx.send("A question is required")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("A question is required")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # dog command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def dog(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'dog'")
@@ -2893,8 +3283,17 @@ async def dog(ctx):
         cupUser = ctx.author
         print(f"Dog -- {cupGuild} by {cupUser}")
 
+@dog.error
+async def dog_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # cat command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def cat(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'cat'")
@@ -2929,8 +3328,17 @@ async def cat(ctx):
         cupUser = ctx.author
         print(f"Cat -- {cupGuild} by {cupUser}")
 
+@cat.error
+async def cat_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # gif command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def gif(ctx,*,q="random"):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'gif'")
@@ -2972,6 +3380,14 @@ async def gif(ctx,*,q="random"):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"GIF -- {cupGuild} by {cupUser}")
+
+@gif.error
+async def gif_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # custom prefixes 2.0
 # adding guild to database based on join (perm)
@@ -3120,6 +3536,7 @@ async def on_message(msg):
 
 # set prefix command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def setprefix(ctx, prefix):
     guildID = ctx.guild.id
@@ -3160,9 +3577,9 @@ async def setprefix(ctx, prefix):
     cupUser = ctx.author
     print(f"SetPrefix -- {cupGuild} by {cupUser}")
 
-
 @setprefix.error
 async def setprefix_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
@@ -3171,9 +3588,13 @@ async def setprefix_error(ctx, error):
             await ctx.send("You do not have permission to use that command")
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f"Please include a prefix, `{pre}setprefix [prefix]`")
+        elif isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # prefix get command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def prefix(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'prefix'")
@@ -3196,8 +3617,17 @@ async def prefix(ctx):
     cupUser = ctx.author
     print(f"Prefix -- {cupGuild} by {cupUser}")
 
+@prefix.error
+async def prefix_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # command stats 
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def cstats(ctx, command):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'cstats'")
@@ -3237,9 +3667,18 @@ async def cstats(ctx, command):
     cupUser = ctx.author
     print(f"Cstats -- {cupGuild} by {cupUser}")
 
+@cstats.error
+async def cstats_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # socials stuff
 # socials set
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def set(message, social, account):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'set'")
@@ -3383,15 +3822,20 @@ async def set(message, social, account):
 
 @set.error
 async def set_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
     for pre in prefix:
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Please include a social media account name")
+        elif isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # socials get
 @bot.command(aliases= ['soc'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def socials(ctx, member: discord.Member=None):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'socials'")
@@ -3548,15 +3992,20 @@ async def socials(ctx, member: discord.Member=None):
 
 @socials.error
 async def socials_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
     for pre in prefix:
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Please mention a user to get their socials profile")
+        elif isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
     
 # delete socials
 @bot.command(aliases= ['socdel'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def socialdelete(ctx, social):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'socialdelete'")
@@ -3634,15 +4083,20 @@ async def socialdelete(ctx, social):
 
 @socialdelete.error
 async def socialdelete_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
     for pre in prefix:
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Please name a social media to remove from your profile")
+        elif isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # supported socials
 @bot.command(aliases= ['suso'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def supportedsocials(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'supportedsocials'")
@@ -3663,8 +4117,17 @@ async def supportedsocials(ctx):
     cupUser = ctx.author
     print(f"Suso -- {cupGuild} by {cupUser}")
 
+@supportedsocials.error
+async def supportedsocials_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # social help
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def socialshelp(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'socialshelp'")
@@ -3692,9 +4155,18 @@ async def socialshelp(ctx):
     cupUser = ctx.author
     print(f"SocialsHelp -- {cupGuild} by {cupUser}")
 
+@socialshelp.error
+async def socialshelp_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # counting stuff
 # set channel
 @bot.command(aliases=['secoca'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def setcountchannel(ctx, channel: discord.TextChannel):
     guildID = ctx.guild.id
@@ -3728,6 +4200,7 @@ async def setcountchannel(ctx, channel: discord.TextChannel):
 
 @setcountchannel.error
 async def setcountchannel_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
@@ -3736,11 +4209,15 @@ async def setcountchannel_error(ctx, error):
             await ctx.send("Please mention a text channel to set")    
         elif isinstance(error, commands.MissingPermissions):
             await ctx.send("You do not have permission to use that command")
+        elif isinstance(error, commands.CommandOnCooldown):
+            embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+            await ctx.send(embed=embed)
 
 # for actual counting function see line 1722
 
 # counting rules
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def countrules(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'countrules'")
@@ -3766,10 +4243,18 @@ async def countrules(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Countrules -- {cupGuild} by {cupUser}")
-    
+
+@countrules.error
+async def countrules_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # counting info
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def countinfo(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'countinfo'")
@@ -3798,8 +4283,17 @@ async def countinfo(ctx):
     cupUser = ctx.author
     print(f"Countinfo -- {cupGuild} by {cupUser}")
 
+@countinfo.error
+async def countinfo_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # get count channel
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def countchannel(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'countchannel'")
@@ -3826,8 +4320,17 @@ async def countchannel(ctx):
     cupUser = ctx.author
     print(f"Countchannel -- {cupGuild} by {cupUser}")
 
+@countchannel.error
+async def countchannel_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # get high score
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def counthigh(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'counthigh'")
@@ -3856,8 +4359,17 @@ async def counthigh(ctx):
     cupUser = ctx.author
     print(f"Counthigh -- {cupGuild} by {cupUser}")
 
+@counthigh.error
+async def counthigh_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Dad joke 
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def dadjoke(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'dadjoke'")
@@ -3881,8 +4393,17 @@ async def dadjoke(ctx):
     cupUser = ctx.author
     print(f"Dadjoke -- {cupGuild} by {cupUser}")
 
+@dadjoke.error
+async def dadjoke_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Affirmation command
 @bot.command(aliases=['isad', 'aff'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def affirmation(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'affirmation'")
@@ -3911,8 +4432,17 @@ async def affirmation(ctx):
     cupUser = ctx.author
     print(f"Aff -- {cupGuild} by {cupUser}")
 
+@affirmation.error
+async def affirmation_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # translate command
 @bot.command(aliases=['tr'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def translate(ctx, lang_to, *args):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'translate'")
@@ -3946,14 +4476,19 @@ async def translate(ctx, lang_to, *args):
 
 @translate.error
 async def translate_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     if isinstance(error, commands.BadArgument):
         embed = discord.Embed(title="That is not a supported language", description="Please click [Here](https://cloud.google.com/translate/docs/languages) for a list of supported languages and codes", color=discord.Color.red())
         embed.timestamp = datetime.datetime.utcnow()
         embed.set_footer(text=f"{ctx.author} \u200b")
         await ctx.send(embed=embed)
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # languages command
 @bot.command(aliases=['sl', 'langs'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def languages(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'languages'")
@@ -3976,8 +4511,17 @@ async def languages(ctx):
     cupUser = ctx.author
     print(f"Langs -- {cupGuild} by {cupUser}")
 
+@languages.error
+async def languages_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # say command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def say(ctx, *, message):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'say'")
@@ -3997,8 +4541,19 @@ async def say(ctx, *, message):
     cupUser = ctx.author
     print(f"Say -- {cupGuild} by {cupUser}")
 
+@say.error
+async def say_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include something for DoxBot to say!")
+
 # roast command
 @bot.command(aliases=['insult'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def roast(ctx, *, member: discord.Member=None):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'roast'")
@@ -4027,8 +4582,17 @@ async def roast(ctx, *, member: discord.Member=None):
     cupUser = ctx.author
     print(f"Roast -- {cupGuild} by {cupUser}")
 
+@roast.error
+async def roast_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # short url 
 @bot.command(aliases=['surl'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def shorturl(ctx, url):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'shorturl'")
@@ -4067,8 +4631,19 @@ async def shorturl(ctx, url):
     cupUser = ctx.author
     print(f"Surl -- {cupGuild} by {cupUser}")
 
+@shorturl.error
+async def shorturl_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a URL to shorten!")
+
 # wanted
 @bot.command()
+@commands.cooldown(1,3,commands.BucketType.guild)
 async def wanted(ctx, user: discord.Member=None):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'wanted'")
@@ -4106,8 +4681,17 @@ async def wanted(ctx, user: discord.Member=None):
     cupUser = ctx.author
     print(f"Wanted -- {cupGuild} by {cupUser}")
 
+@wanted.error
+async def wanted_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # qr code generator
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def qr(ctx, url):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'qr'")
@@ -4131,8 +4715,19 @@ async def qr(ctx, url):
     cupUser = ctx.author
     print(f"QR -- {cupGuild} by {cupUser}")
 
+@qr.error
+async def qr_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a URL for a QR code")
+
 # hex code generator
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def rcolor(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'rcolor'")
@@ -4166,8 +4761,17 @@ async def rcolor(ctx):
     cupUser = ctx.author
     print(f"Rcolor -- {cupGuild} by {cupUser}")
 
+@rcolor.error
+async def rcolor_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # love tester
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def lovetest(ctx, member: discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'lovetest'")
@@ -4209,8 +4813,19 @@ async def lovetest(ctx, member: discord.Member):
     cupUser = ctx.author
     print(f"Lovetest -- {cupGuild} by {cupUser}")
 
+@lovetest.error
+async def lovetest_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a user to test your love with them")
+
 # today in history
 @bot.command(aliases=['tih', 'datefact'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def todayinhistory(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'todayinhistory'")
@@ -4253,8 +4868,17 @@ async def todayinhistory(ctx):
     cupUser = ctx.author
     print(f"TIH -- {cupGuild} by {cupUser}")  
 
+@todayinhistory.error
+async def todayinhistory_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # number facts
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def numfact(ctx, number):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'numfact'")
@@ -4291,8 +4915,19 @@ async def numfact(ctx, number):
     cupUser = ctx.author
     print(f"Numfact -- {cupGuild} by {cupUser}")
 
+@numfact.error
+async def numfact_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a number to get a fact about it!")
+
 # weather 
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def weather(ctx, location):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'weather'")
@@ -4357,12 +4992,19 @@ async def weather(ctx, location):
 
 @weather.error
 async def weather_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     if isinstance(error, commands.CommandInvokeError):
         await ctx.send("That is not a valid location")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a location")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # notes system
 # set notes command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def setnote(ctx, member: discord.Member, *, note):
     guildID = ctx.guild.id
@@ -4423,13 +5065,19 @@ async def setnote(ctx, member: discord.Member, *, note):
 
 @setnote.error
 async def setnote_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("Please either mention a user to set the note or include a note message")
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please either include a user or a note to set")
     elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command")
 
 # get notes command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def notes(ctx, member: discord.Member):
     guildID = ctx.guild.id
@@ -4522,13 +5170,18 @@ async def notes(ctx, member: discord.Member):
 
 @notes.error
 async def notes_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please mention a user to get their notes")
     elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # delete specific note
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def deletenote(ctx, noteID):
     guildID = ctx.guild.id
@@ -4554,13 +5207,18 @@ async def deletenote(ctx, noteID):
 
 @deletenote.error
 async def deletenote_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please include a note ID. Use `notes [user]` to get note ID's")
     elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # clear notes
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def clearnotes(ctx, member: discord.Member):
     guildID = ctx.guild.id
@@ -4591,13 +5249,18 @@ async def clearnotes(ctx, member: discord.Member):
 
 @clearnotes.error
 async def clearnotes_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please mention a user to clear their notes")
     elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # bot idea system
 @bot.command(aliases=['bi'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def botidea(ctx, *, idea):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'botidea'")
@@ -4637,8 +5300,19 @@ async def botidea(ctx, *, idea):
     cupUser = ctx.author
     print(f"Botidea -- {cupGuild} by {cupUser}")
 
+@botidea.error
+async def botidea_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commnads.MissingRequiredArgument):
+        await ctx.send("Please incude an idea")
+
 # bug report
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def bugreport(ctx, *, bug):
     bugChannel = bot.get_channel(834218634887954472)
     userID = ctx.author.id
@@ -4673,8 +5347,19 @@ async def bugreport(ctx, *, bug):
     cupUser = ctx.author
     print(f"Botidea -- {cupGuild} by {cupUser}")
 
+@bugreport.error
+async def bugreport_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please incude a bug")
+
 # apporve
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def biapprove(ctx, ideaid, **reason):
     ideaChannel = bot.get_channel(801478447951249437)
     if reason == {}:
@@ -4714,8 +5399,18 @@ async def biapprove(ctx, ideaid, **reason):
 
         else:
             await ctx.send("Only the bot owner (PapaRaG3#6969) can use that command!")
+
+@biapprove.error
+async def biapprove_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # idea deny
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def bideny(ctx, ideaid, *, reason):
     ideaChannel = bot.get_channel(801478447951249437)
     cursor.execute(f"SELECT idea_id FROM userSuggestions WHERE idea_id = '{ideaid}'")
@@ -4749,8 +5444,17 @@ async def bideny(ctx, ideaid, *, reason):
     cupUser = ctx.author
     print(f"Bideny -- {cupGuild} by {cupUser}")
 
+@bideny.error
+async def bideny_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # this person does not exist
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def doesntexist(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'doesntexist'")
@@ -4776,8 +5480,17 @@ async def doesntexist(ctx):
     cupUser = ctx.author
     print(f"Doesntexist -- {cupGuild} by {cupUser}")
 
+@doesntexist.error
+async def doesntexist_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 #sex command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def sex(ctx, member: discord.Member):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sex'")
@@ -4836,9 +5549,20 @@ async def sex(ctx, member: discord.Member):
     cupUser = ctx.author
     print(f"Sex -- {cupGuild} by {cupUser}")
 
+@sex.error
+async def sex_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a user to have sex with")
+
 # word game
 # set channel
 @bot.command(aliases=['sewoch'])
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator = True)
 async def setwordchan(ctx, channel: discord.TextChannel):
     guildID = ctx.guild.id
@@ -4870,8 +5594,21 @@ async def setwordchan(ctx, channel: discord.TextChannel):
     cupUser = ctx.author
     print(f"Sewoch -- {cupGuild} by {cupUser}")
 
+@setwordchan.error
+async def setwordchan_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please incude a channel")
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command")
+
 # get channel
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def wordchan(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'wordchan'")
@@ -4898,8 +5635,17 @@ async def wordchan(ctx):
     cupUser = ctx.author
     print(f"Wordchan -- {cupGuild} by {cupUser}")
 
+@wordchan.error
+async def wordchan_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # get highscore
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def wordhigh(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'wordhigh'")
@@ -4923,8 +5669,17 @@ async def wordhigh(ctx):
     cupUser = ctx.author
     print(f"Wordhigh -- {cupGuild} by {cupUser}")
 
+@wordhigh.error
+async def wordhigh_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # word game info
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def wordinfo(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'wordinfo'")
@@ -4946,9 +5701,18 @@ async def wordinfo(ctx):
     cupUser = ctx.author
     print(f"Wordinfo -- {cupGuild} by {cupUser}")
 
+@wordinfo.error
+async def wordinfo_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # command toggle system
 # disable command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def disable(ctx, command):
     guildID = ctx.guild.id
@@ -4981,12 +5745,19 @@ async def disable(ctx, command):
 
 @disable.error
 async def disable_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a command to disable")
+    elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command")
-
 
 # enable command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def enable(ctx, command):
     guildID = ctx.guild.id
@@ -5011,11 +5782,19 @@ async def enable(ctx, command):
 
 @enable.error
 async def enable_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a command to enable")
+    elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command")
 
 # list disabled 
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def disabledcmds(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'disabledcmds'")
@@ -5051,8 +5830,13 @@ async def disabledcmds(ctx):
 
 @disabledcmds.error
 async def disabledcmds_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
     if isinstance(error, commands.CommandInvokeError):
         await ctx.send("There are no disabled commands for the server")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # economy stuff
 # balance
@@ -5131,9 +5915,10 @@ async def balance(ctx, member: discord.Member = None):
 
 @balance.error
 async def balance_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Woah there!", description="Take a breather! Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
 
 # beg
@@ -5187,9 +5972,10 @@ async def beg(ctx):
 
 @beg.error
 async def beg_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Woah there!", description="Quit beggin! Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
 
 # daily 
@@ -5242,10 +6028,11 @@ async def daily(ctx):
     
 @daily.error
 async def daily_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
         cooldown = error.retry_after / 3600
-        embed = discord.Embed(title="Slow it down!", description="You can do that in **{:.0f}** hours".format(cooldown))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="You can do that in **{:.0f}** hours".format(cooldown))
         await ctx.send(embed=embed)
 
 # fish
@@ -5370,13 +6157,15 @@ async def fish(ctx):
 
 @fish.error
 async def fish_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Woah there!", description="Chill out! Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
 
 # shop command
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def shop(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'shop'")
@@ -5412,8 +6201,17 @@ async def shop(ctx):
     cupUser = ctx.author
     print(f"Shop -- {cupGuild} by {cupUser}")
 
+@shop.error
+async def shop_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # buy commands
 @bot.group(name='buy', invoke_without_command=True)
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def buy_cmd(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'buy'")
@@ -5541,9 +6339,10 @@ async def gift(ctx, user: discord.User, coins: int):
 
 @gift.error
 async def gift_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Woah there!", description="Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
 
 # high low
@@ -5655,13 +6454,15 @@ async def highlow(ctx):
 
 @highlow.error
 async def highlow_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Hey hey hey!", description="Take a breather! Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
 
 # richest
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def richest(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'richest'")
@@ -5700,6 +6501,14 @@ async def richest(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Richest -- {cupGuild} by {cupUser}")
+
+@richest.error
+async def richest_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # slot machines
 @bot.command(aliases=['slot', 'slotmachine'])
@@ -5809,9 +6618,10 @@ async def slots(ctx, amount: int):
 
 @slots.error
 async def slot_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="Hey hey hey!", description="Take a breather! Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please include an amount of coins to gamble!")
@@ -5930,9 +6740,10 @@ async def rps(ctx, amount: int, move):
 
 @rps.error
 async def rps_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.CommandOnCooldown):
-        embed = discord.Embed(title="SHEESH!", description="Chill! Try again in {:.2f}s".format(error.retry_after))
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please include an amount of coins to gamble or a play!")
@@ -5940,6 +6751,7 @@ async def rps_error(ctx, error):
 # starboard
 # set chan
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def setstarboard(ctx, channel: discord.TextChannel):
     guildID = ctx.guild.id
@@ -5981,14 +6793,19 @@ async def setstarboard(ctx, channel: discord.TextChannel):
 
 @setstarboard.error
 async def setstarboard_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command!")
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please include a text channel")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # set thresh
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 @commands.has_permissions(administrator=True)
 async def starthresh(ctx, thresh: int):
     guildID = ctx.guild.id
@@ -6023,11 +6840,15 @@ async def starthresh(ctx, thresh: int):
 
 @starthresh.error
 async def starthresh_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
     print(error)
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use that command!")
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please include a number!")
+    elif isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
 
 # detect react
 @bot.event
@@ -6094,6 +6915,7 @@ async def on_reaction_add(reaction, user):
 
 # get highest star
 @bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def highstar(ctx):
     guildID = ctx.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'highstar'")
@@ -6143,8 +6965,422 @@ async def highstar(ctx):
     cupUser = ctx.author
     print(f"Highstar -- {cupGuild} by {cupUser}")
 
+@highstar.error
+async def highstar_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
+# server stats
+# setup
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+@commands.has_permissions(administrator=True)
+async def statsetup(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'statsetup'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    guildID = ctx.guild.id
+    totalCount = len(ctx.guild.members) 
+    humanCount = len([m for m in ctx.guild.members if not m.bot])
+    botCount = totalCount - humanCount
+
+    cursor.execute(f"SELECT guild_id FROM serverstats WHERE guild_id = {guildID}")
+    setCheck = cursor.fetchone()
+    if setCheck != None:
+        await ctx.send("Server Stats has already been setup! Please use `statsreset` to start again!")
+        return
+    elif setCheck == None:
+        pass
+    
+    overwrites = {
+        ctx.guild.default_role: discord.PermissionOverwrite(view_channel=True, connect=False)
+    }
+    
+    await ctx.guild.create_category(name="Server Stats", overwrites=overwrites, reason=None, position=0)
+
+    category = discord.utils.get(ctx.guild.categories, name="Server Stats")
+    await ctx.guild.create_voice_channel(f"All Members: {totalCount}", category=category, sync_permissions=True)
+    await ctx.guild.create_voice_channel(f"Humans: {humanCount}", category=category, sync_permissions=True)
+    await ctx.guild.create_voice_channel(f"Bots: {botCount}", category=category, sync_permissions=True)
+
+    allMemChan = discord.utils.get(ctx.guild.channels, name=f"All Members: {totalCount}")
+    allMemChanID = allMemChan.id
+    humanChan = discord.utils.get(ctx.guild.channels, name=f"Humans: {humanCount}")
+    humanChanID = humanChan.id
+    botChan = discord.utils.get(ctx.guild.channels, name=f"Bots: {botCount}")
+    botChanID = botChan.id
+
+    cursor.execute(f"INSERT INTO `serverstats` (`guild_id`, `allmem_chan_id`, `human_chan_id`, `bot_chan_id`) VALUES ('{guildID}', '{allMemChanID}', '{humanChanID}', '{botChanID}')")
+    db.commit()
+    
+    await ctx.send("Server stat counters setup!")
+    cursor.execute("SELECT used FROM commands WHERE name = 'statsetup'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'statsetup'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Statsetup -- {cupGuild} by {cupUser}")
+
+@statsetup.error
+async def statsetup_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command")
+
+# member joins
+@bot.event
+async def on_member_join(member):
+    guildID = member.guild.id
+    totalCount = len(member.guild.members) 
+    humanCount = len([m for m in member.guild.members if not m.bot])
+    botCount = totalCount - humanCount
+
+    cursor.execute(f"SELECT allmem_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    allMemChanIDUF = cursor.fetchone()
+    if allMemChanIDUF == None:
+        return
+    elif allMemChanIDUF != None:
+        pass
+
+    cursor.execute(f"SELECT human_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    humanChanIDUF = cursor.fetchone()
+    cursor.execute(f"SELECT bot_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    botChanIDUF = cursor.fetchone()
+
+    for allMemChanID in allMemChanIDUF:
+        for humanChanID in humanChanIDUF:
+            for botChanID in botChanIDUF:
+                pass
+
+    allMemChan = bot.get_channel(allMemChanID)
+    humanChan = bot.get_channel(humanChanID)
+    botChan = bot.get_channel(botChanID)
+
+    if allMemChanID != 0:
+        await allMemChan.edit(name=f"All Members: {totalCount}")
+        pass
+    try:
+        if member.bot == True and botChanID != 0:
+            await botChan.edit(name=f"Bots: {botCount}")
+            return
+    except:
+        if member.bot != True and humanChanID != 0:
+            await humanChan.edit(name=f"Humans: {humanCount}")
+
+# member leave
+@bot.event
+async def on_member_remove(member):
+    guildID = member.guild.id
+    totalCount = len(member.guild.members) 
+    humanCount = len([m for m in member.guild.members if not m.bot])
+    botCount = totalCount - humanCount
+
+    cursor.execute(f"SELECT allmem_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    allMemChanIDUF = cursor.fetchone()
+    if allMemChanIDUF == None:
+        return
+    elif allMemChanIDUF != None:
+        pass
+
+    cursor.execute(f"SELECT human_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    humanChanIDUF = cursor.fetchone()
+    cursor.execute(f"SELECT bot_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    botChanIDUF = cursor.fetchone()
+    for allMemChanID in allMemChanIDUF:
+        for humanChanID in humanChanIDUF:
+            for botChanID in botChanIDUF:
+                pass
+
+    allMemChan = bot.get_channel(allMemChanID)
+    humanChan = bot.get_channel(humanChanID)
+    botChan = bot.get_channel(botChanID)
+
+    if allMemChanID != 0:
+        await allMemChan.edit(name=f"All Members: {totalCount}")
+        pass
+    try:
+        if member.bot == True and botChanID != 0:
+            await botChan.edit(name=f"Bots: {botCount}")
+            return
+    except:
+        if member.bot != True and humanChanID != 0:
+            await humanChan.edit(name=f"Humans: {humanCount}")
+
+# reset counters
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+@commands.has_permissions(administrator=True)
+async def statsreset(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'resetstats'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    guildID = ctx.guild.id
+
+    cursor.execute(f"SELECT allmem_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    allMemChanIDUF = cursor.fetchone()
+    if allMemChanIDUF == None:
+        await ctx.send('Server Stats has not been setup and thus can not be reset')
+        return
+    elif allMemChanIDUF != None:
+        pass
+
+    cursor.execute(f"SELECT human_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    humanChanIDUF = cursor.fetchone()
+    cursor.execute(f"SELECT bot_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    botChanIDUF = cursor.fetchone()
+    for allMemChanID in allMemChanIDUF:
+        for humanChanID in humanChanIDUF:
+            for botChanID in botChanIDUF:
+                pass
+    
+    cursor.execute(f"DELETE FROM `serverstats` WHERE guild_id = {guildID}")
+    db.commit()
+
+    category = discord.utils.get(ctx.guild.categories, name="Server Stats")
+    allMemChan = bot.get_channel(allMemChanID)
+    humanChan = bot.get_channel(humanChanID)
+    botChan = bot.get_channel(botChanID)
+
+    if allMemChanID != 0:
+        await allMemChan.delete()
+        pass
+    elif humanChanID != 0:
+        await humanChan.delete()
+        pass
+    elif botChanID != 0:
+        await botChan.delete()
+        pass
+    await category.delete()
+
+    await ctx.send("Server stat counters reset")
+    cursor.execute("SELECT used FROM commands WHERE name = 'resetstats'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'resetstats'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Resetstats -- {cupGuild} by {cupUser}")
+
+@statsreset.error
+async def statsreset_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command")
+
+# disable counters
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+@commands.has_permissions(administrator=True)
+async def removecounter(ctx, counter):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'removecounter'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    guildID = ctx.guild.id
+    
+    cursor.execute(f"SELECT allmem_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    allMemChanIDUF = cursor.fetchone()
+    if allMemChanIDUF == None:
+        await ctx.send('Server Stats has not been setup! Run `statsetup`')
+        return
+    elif allMemChanIDUF != None:
+        pass
+
+    cursor.execute(f"SELECT human_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    humanChanIDUF = cursor.fetchone()
+    cursor.execute(f"SELECT bot_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    botChanIDUF = cursor.fetchone()
+    for allMemChanID in allMemChanIDUF:
+        for humanChanID in humanChanIDUF:
+            for botChanID in botChanIDUF:
+                pass
+
+    category = discord.utils.get(ctx.guild.categories, name="Server Stats")
+
+    if counter == 'all':
+        allMemChan = bot.get_channel(allMemChanID)
+        await allMemChan.delete()
+        cursor.execute(f"UPDATE `serverstats` SET allmem_chan_id = 0 WHERE allmem_chan_id = {allMemChanID} AND guild_id = {guildID}")
+        db.commit()
+        pass
+    elif counter == 'bots':
+        botChan = bot.get_channel(botChanID)
+        await botChan.delete()
+        cursor.execute(f"UPDATE `serverstats` SET bot_chan_id = 0 WHERE bot_chan_id = {botChanID} AND guild_id = {guildID}")
+        db.commit()
+        pass
+    elif counter == 'humans':
+        humanChan = bot.get_channel(humnaChanID)
+        await humanChan.delete()
+        cursor.execute(f"UPDATE `serverstats` SET human_chan_id = 0 WHERE human_chan_id = {humanChanID} AND guild_id = {guildID}")
+        db.commit()
+        pass
+
+    await ctx.send(f'Deleted **{counter}** Counter')
+    cursor.execute("SELECT used FROM commands WHERE name = 'removecounter'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'removecounter'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Removecounter -- {cupGuild} by {cupUser}")
+
+@removecounter.error
+async def removecounter_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command")
+
+# add counter
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+@commands.has_permissions(administrator=True)
+async def addcounter(ctx, counter):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'addcounter'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    guildID = ctx.guild.id
+    totalCount = len(ctx.guild.members) 
+    humanCount = len([m for m in ctx.guild.members if not m.bot])
+    botCount = totalCount - humanCount
+    
+    cursor.execute(f"SELECT allmem_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    allMemChanIDUF = cursor.fetchone()
+    if allMemChanIDUF == None:
+        await ctx.send('Server Stats has not been setup! Run `statsetup`')
+        return
+    elif allMemChanIDUF != None:
+        pass
+
+    cursor.execute(f"SELECT human_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    humanChanIDUF = cursor.fetchone()
+    cursor.execute(f"SELECT bot_chan_id FROM serverstats WHERE guild_id = {guildID}")
+    botChanIDUF = cursor.fetchone()
+    for allMemChanID in allMemChanIDUF:
+        for humanChanID in humanChanIDUF:
+            for botChanID in botChanIDUF:
+                pass
+
+    category = discord.utils.get(ctx.guild.categories, name="Server Stats")
+
+    if counter == 'all' and allMemChanID == 0:
+        await ctx.guild.create_voice_channel(f"All Members: {totalCount}", category=category, sync_permissions=True)
+        allMemChan = discord.utils.get(ctx.guild.channels, name=f"All Members: {totalCount}")
+        allMemChanID = allMemChan.id
+        cursor.execute(f"UPDATE serverstats SET allmem_chan_id = {allMemChanID} WHERE guild_id = {guildID}")
+        db.commit()
+        pass
+    elif counter == 'bots':
+        await ctx.guild.create_voice_channel(f"Bots: {botCount}", category=category, sync_permissions=True)
+        botChan = discord.utils.get(ctx.guild.channels, name=f"Bots: {botCount}")
+        botChanID = botChan.id
+        cursor.execute(f"UPDATE serverstats SET bot_chan_id = {botChanID} WHERE guild_id = {guildID}")
+        db.commit()
+        pass
+    elif counter == 'humans':
+        await ctx.guild.create_voice_channel(f"Humans: {humanCount}", category=category, sync_permissions=True)
+        humanChan = discord.utils.get(ctx.guild.channels, name=f"Humans: {humanCount}")
+        humanChanID = humanChan.id
+        cursor.execute(f"UPDATE serverstats SET human_chan_id = {humanChanID} WHERE guild_id = {guildID}")
+        db.commit()
+        pass
+
+    await ctx.send(f'Added **{counter}** Counter')
+    cursor.execute("SELECT used FROM commands WHERE name = 'addcounter'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'addcounter'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Addcounter -- {cupGuild} by {cupUser}")
+
+@addcounter.error
+async def addcounter_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("You do not have permission to use that command")
+
+# counters
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+async def counters(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'counters'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    embed = discord.Embed(title="Server Stats Counters:", color=discord.Color.random())
+    embed.add_field(name="all", value="This counter counts all members in your server, bots and humans", inline=False)
+    embed.add_field(name="humans", value="This counter counts all the humans in your server", inline=False)
+    embed.add_field(name="bots", value="This counter counts all the bots in your server", inline=False)
+
+    await ctx.send(embed=embed)
+    cursor.execute("SELECT used FROM commands WHERE name = 'counters'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'counters'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Counters -- {cupGuild} by {cupUser}")
+
+@counters.error
+async def counters_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
 # Run bot
-keep_alive()
+web_server()
+pub_tweet.start()
 print(db)
 print("Online")
 bot.run(os.getenv('TOKEN'))
