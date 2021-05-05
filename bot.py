@@ -169,7 +169,7 @@ async def help_cmd(ctx):
     for pre in prefix:
         
         embed = discord.Embed(title="DoxBot Help", description=f"For more info on any command simply do `{pre}help [command]`. Example: `{pre}help dox`", color=0xff6666)
-        embed.add_field(name="Music:", value="`play [song]`, `music`", inline=False)
+        embed.add_field(name="Music:", value="`play [song]`, `music`, `sfx [sound name]`", inline=False)
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
         embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
         embed.add_field(name="Starboard:", value="`setstarboard [channel]`, `starthresh [number]`, `highstar`", inline=False)
@@ -189,6 +189,16 @@ async def help_cmd(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Help -- {cupGuild} by {cupUser}")
+
+@help_cmd.command(name='sfx')
+async def sfx_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="SFX Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}sfx [sound]", value=f"Use this command to get a list of all available sounds, or put in a sound to play it in whatever VC you are in", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
 
 @help_cmd.command(name='counters')
 async def counters_subcom(ctx):
@@ -1695,7 +1705,7 @@ async def stats(ctx):
     embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
     embed.add_field(name="Servers:", value=scount, inline=True)
     embed.add_field(name="Users:", value=users, inline=True)
-    embed.add_field(name="Commands:", value="117", inline=True)
+    embed.add_field(name="Commands:", value="148", inline=True)
     embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
@@ -7377,6 +7387,517 @@ async def counters_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
+
+# sound effects
+async def play_file(ctx, filename):
+    if not ctx.author.voice:
+        await ctx.send("You are not in a voice channel.")
+        return
+
+    voice_channel = ctx.author.voice.channel
+    try:
+        voice_channel = await voice_channel.connect()
+
+    # catching most common errors that can occur while playing effects
+    except discord.Forbidden:
+        await ctx.send(
+            "Command raised error \"403 Forbidden\". Please check if bot has permission to join and speak in voice "
+            "channel")
+        return
+    except TimeoutError:
+        await ctx.send(
+            "There was an error while joining channel (Timeout). It's possible that either Discord API or bot host "
+            "has latency/connection issues. Please try again later if issues will continue contact bot owner.")
+        return
+    except discord.ClientException:
+        await ctx.send("I am already playing a sound! Please wait to the current sound is done playing!")
+        return
+    except Exception as e:
+        await ctx.send(
+            "There was an error processing your request. Please try again. If issues persists please join the support server for help https://discord.com/invite/zs7UwgBZb9")
+        print(f'Error trying to join a voicechannel: {e}')
+        return
+
+    # There is a 1 in 100th chance that it
+    # will do a rickroll instead of the desired sound
+    random_chance = random.randint(1, 200)
+    if random_chance == 1:
+        source = discord.FFmpegPCMAudio("sounds/rickroll.mp3")
+        await ctx.send("Get rolled. There's a .5% chance of that happening, good job!")
+    else:
+        try:
+            source = discord.FFmpegPCMAudio(filename)
+
+        # edge case: missing file error
+        except FileNotFoundError:
+            await ctx.send(
+                "There was an issue with playing sound: File Not Found.")
+    try:
+        voice_channel.play(source)
+    # catching most common errors that can occur while playing effects
+    except discord.Forbidden:
+        await ctx.send("There was issue playing a sound effect. please check if bot has speak permission")
+        await voice_channel.disconnect()
+        return
+    except TimeoutError:
+        await ctx.send(
+            "There was a error while attempting to play the sound effect (Timeout) its possible that either discord "
+            "API or bot host has latency or network issues. Please try again later, if issues will continue contact "
+            "bot owner")
+        await voice_channel.disconnect()
+        return
+    except Exception as e:
+        await ctx.send(
+            "There was an issue playing the sound. Please try again later. If issues will continue contact bot owner.")
+        await voice_channel.disconnect()
+        print(f'Error trying to play a sound: {e}')
+        return
+
+    await ctx.send(":thumbsup: played the effect!")
+    while voice_channel.is_playing():
+        await asyncio.sleep(1)
+
+    voice_channel.stop()
+
+    await voice_channel.disconnect()
+
+@bot.group(name='sfx', invoke_without_command=True)
+async def sfx_cmd(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    user = ctx.author
+    embed = discord.Embed(title="Available Sound Effects", description="To play a sound effect join a vc and type `sfx [sound name]` sound names are below...", color=0xff6666)
+    embed.add_field(name="Sound Effects", value="`airhorn`, `bazinga`, `justdoit`, `clap`, `oof`, `nope`, `suspense`, `sad`, `gay`, `fail`, `no`, `godno`, `dootstorm`, `wtf`, `fuckedup`, `ohno`, `ohhh`, `thuglife`, `djhorn`, `phintro`, `memereview`, `spongebob`, `mariocoin`, `honk`, `goodone`, `crickets`, `jumpscare`, `deez`, `door`, `fart`", inline=False)
+    embed.set_footer(text=f"{user}")
+    await ctx.send(embed=embed)
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="airhorn")
+async def airhorn_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/airhorn.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Airhorn -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="bazinga")
+async def bazinga_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/bazinga.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Bazinga -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="justdoit")
+async def justdoit_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/justdoit.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX JustDoIt -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="clap")
+async def clap_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/clap.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Clap -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="oof")
+async def oof_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/oof.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Oof -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="nope")
+async def nope_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/nope.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Nope -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="suspense")
+async def suspense_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/suddensus.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Suspense -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="sad")
+async def sad_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/sadmusic.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Sad -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="gay")
+async def gay_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/hagay.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Gay -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="fail")
+async def fail_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/fail.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Fail -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="no")
+async def no_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/no.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX No -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="godno")
+async def godno_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/godno.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX GodNo -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="dootstorm")
+async def dootstorm_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/dootstorm.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX DootStorm -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="wtf")
+async def wtf_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/WTF.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX WTF -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="fuckedup")
+async def fuckedup_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/fuckedup.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX FuckedUp -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="ohno")
+async def ohno_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/ohno.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX OhNo -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="ohhh")
+async def ohhh_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/ohhh.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Ohhh -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="thuglife")
+async def thuglife_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/thuglife.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX ThugLife -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="djhorn")
+async def djhorn_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/djhorn.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX DJHorn -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="phintro")
+async def phintro_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/phintro.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX PHintro -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="memereview")
+async def memereview_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/meme-review.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX MemeReview -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="spongebob")
+async def spongebob_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/spongebob.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Spongebob -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="mariocoin")
+async def mariocoin_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/mario_coin.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX MarioCoin -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="honk")
+async def honk_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/honk.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Honk -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="goodone")
+async def goodone_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/good-one.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX GoodOne -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="crickets")
+async def crickets_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/crickets.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Crickets -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="jumpscare")
+async def jumpscare_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/jump-scare.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX JumpScare -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="deez")
+async def deez_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/nuts.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Deez -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="door")
+async def door_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/door.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Door -- {cupGuild} by {cupUser}")
+
+@sfx_cmd.command(name="fart")
+async def fart_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'sfx'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await play_file(ctx, "sounds/fart.mp3")
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"SFX Fart -- {cupGuild} by {cupUser}")
 
 # Run bot
 web_server()
