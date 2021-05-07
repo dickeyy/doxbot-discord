@@ -171,7 +171,7 @@ async def help_cmd(ctx):
         embed = discord.Embed(title="DoxBot Help", description=f"For more info on any command simply do `{pre}help [command]`. Example: `{pre}help dox`", color=0xff6666)
         embed.add_field(name="Music:", value="`play [song]`, `music`, `sfx [sound name]`", inline=False)
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
-        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
+        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `mine`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
         embed.add_field(name="Starboard:", value="`setstarboard [channel]`, `starthresh [number]`, `highstar`", inline=False)
         embed.add_field(name="Server Stats:", value="`statsetup`, `statsreset`, `removecounter [counter]`, `addcounter [counter]`, `counters`", inline=False)
         embed.add_field(name="Utility:", value="`botidea [idea]`, `bugreport [bug]`, `stats`, `setprefix [prefix]`, `prefix`, `setcountchannel [channel]`, `countinfo`, `setwordchan [channel]`, `wordinfo`, `poll [option 1] or [option 2]`, `cstats [command]`, `lfg [game]`, `tictactoe [player 1] [player2]`, `coinflip`, `avatar [user]`, `support`, `ping`, `server`, `vote`, `invite`, `math`, `donate`, `afk [reason]`, `translate [to lang] [message]`, `languages`, `weather [location]`, `shorturl [url]`, `qr [url]`, `rcolor`", inline=False)
@@ -189,6 +189,16 @@ async def help_cmd(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Help -- {cupGuild} by {cupUser}")
+
+@help_cmd.command(name='mine')
+async def mine_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Mine Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}mine", value=f"Use this to mine for some blocks then sell them for DXC! Requires you to have a pickaxe so use the `{pre}shop` command! Also be careful there's a 0.0001% chance of falling in lava!", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
 
 @help_cmd.command(name='sfx')
 async def sfx_subcom(ctx):
@@ -1705,7 +1715,7 @@ async def stats(ctx):
     embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
     embed.add_field(name="Servers:", value=scount, inline=True)
     embed.add_field(name="Users:", value=users, inline=True)
-    embed.add_field(name="Commands:", value="148", inline=True)
+    embed.add_field(name="Commands:", value="154", inline=True)
     embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
@@ -6199,6 +6209,11 @@ async def shop(ctx):
         for pre in prefix:
             embed = discord.Embed(title="DoxBot Shop", description=f"To purchase, do `{pre}buy [number]`. Example: `{pre}buy 1`. DXC = Dox Coin", color=0x057e57)
             embed.add_field(name="1. Fishing Pole - 500 DXC", value=f"The fishing pole is required to be able to use the `{pre}fish` command. `{pre}buy 1`", inline=False)
+            embed.add_field(name="2. Wood Pickaxe - 100 DXC", value=f"The most basic of pickaxes to use the `{pre}mine` commnad. `{pre}buy 2`", inline=False)
+            embed.add_field(name="3. Stone Pickaxe - 200 DXC", value=f"A marginally better pickaxe to use the `{pre}mine` commnad. `{pre}buy 3`", inline=False)
+            embed.add_field(name="4. Iron Pickaxe - 300 DXC", value=f"A solid pickaxe to use the `{pre}mine` commnad. `{pre}buy 4`", inline=False)
+            embed.add_field(name="5. Gold Pickaxe - 400 DXC", value=f"A pretty damn sturdy pickaxe to use the `{pre}mine` commnad. `{pre}buy 5`", inline=False)
+            embed.add_field(name="6. Diamond Pickaxe - 650 DXC", value=f"The best pickaxe money can buy to use the `{pre}mine` commnad. `{pre}buy 6`", inline=False)
             embed.set_footer(text=f"{ctx.author} | Bal: {bal} DXC")
             await ctx.send(embed=embed)
     cursor.execute("SELECT used FROM commands WHERE name = 'shop'")
@@ -6256,7 +6271,7 @@ async def one_subcom(ctx):
             bal -= 500
             cursor.execute(f"UPDATE `econ` SET `fishingpole` = 'Yes', `coins` = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
             db.commit()
-            await ctx.send(f"Purchased a fishing pole! Updated balance: **{bal}** DXC")
+            await ctx.send(f"Purchased a **Fishing Pole!** Updated balance: **{bal}** DXC")
             return
         else:
             await ctx.send(f"You already have a fishing pole!")
@@ -7898,6 +7913,242 @@ async def fart_subcom(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"SFX Fart -- {cupGuild} by {cupUser}")
+
+# mining system 
+@bot.command()
+@commands.cooldown(1,20,commands.BucketType.member)
+async def mine(ctx):
+    guildID = ctx.guild.id
+    userID = ctx.author.id
+    userName = ctx.author.name
+    user = ctx.author
+
+    # check if user has pickaxe
+    cursor.execute(f"SELECT pickAxe_type FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pickTypeUF = cursor.fetchone()
+    if pickTypeUF == ('',):
+        await ctx.send("You do not have a pickaxe! Please buy one using `shop`")
+        return
+    else:
+        pass
+    for pickType in pickTypeUF:
+        pass
+
+    # check the durability of the pickaxe
+    cursor.execute(f"SELECT pickAxe_dura FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pickDuraUF = cursor.fetchone()
+    for pickDura in pickDuraUF:
+        pass
+    if pickDura <= 0:
+        await ctx.send("Your pickaxe is broken! Please buy a new one using `shop`")
+        cursor.execute(f"UPDATE econ SET pickAxe_type = '', pickAxe_dura = 0 WHERE guild_id = {guildID} AND user_id = {userID}")
+        db.commit()
+        return
+    else:
+        pass
+
+    # get users balance
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balUF = cursor.fetchone()
+    if balUF == None:
+        bal = 0
+        pass
+    elif balUF != None:
+        for bal in balUF:
+            pass
+
+    # cringe people fall in lava (super rare)
+    lava_chance = random.randint(1, 1000000)
+    if lava_chance == 1:
+        balMin = bal * .5
+        balN = balMin - bal
+        cursor.execute(f"UPDATE econ SET pickAxe_type = '', pickAxe_dura = 0, coins = {balN} WHERE guild_id = {guildID} AND user_id = {userID}")
+        db.commit()
+        embed = discord.Embed(title="OH NO!", color=discord.Color.red())
+        embed.add_field(name="You fell in lava!!", value=f"There a 0.0001% chance of that happening!! You lost your pickaxe and {balMin} DXC!", inline=False)
+        embed.set_footer(text=f"{userName} | Bal: {balN} DXC")
+        await ctx.send(embed=embed)
+        print(f"{user} Fell in lava!!")
+        return
+
+    # get the block info. Doing it this way instead of with random so i can set percentages for each
+    block_choice = random.randint(1,600)
+    if block_choice == 1:
+        block = "Diamond"
+        price = 500
+        dura = pickDura - 10
+        pass
+    elif block_choice > 1 and block_choice <= 50:
+        block = "Gold"
+        price = 250
+        dura = pickDura - 6
+        pass
+    elif block_choice > 50 and block_choice <= 150:
+        block = "Iron"
+        price = 150
+        dura = pickDura - 5
+        pass
+    elif block_choice > 150 and block_choice <= 275:
+        block = "Coal"
+        price = 50
+        dura = pickDura - 2
+        pass
+    elif block_choice > 275 and block_choice <= 450:
+        block = "Cobblestone"
+        price = 10
+        dura = pickDura - 1
+        pass
+    elif block_choice > 450 and block_choice <= 600:
+        block = "Dirt" 
+        price = 5
+        dura = pickDura - 1
+        pass
+
+    # update balance and pick dura
+    balN = bal + price
+    cursor.execute(f"UPDATE econ SET coins = {balN}, pickAxe_dura = {dura} WHERE guild_id = {guildID} AND user_id = {userID}")
+    db.commit()
+
+    # embed
+    embed = discord.Embed(title=f"Mined: {block}", color=discord.Color.green())
+    embed.add_field(name=f"Value: {price} DXC", value=f"Durability: {dura}", inline=False)
+    embed.set_footer(text=f"{userName} | Bal: {balN} DXC")
+
+    await ctx.send(embed=embed)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'mine'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'mine'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Mine -- {cupGuild} by {cupUser}")
+
+@mine.error
+async def mine_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
+# buying picks
+# wood pick
+@buy_cmd.command(name='2')
+async def two_subcom(ctx):
+    userID = ctx.author.id
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balUF = cursor.fetchone()
+    cursor.execute(f"SELECT pickAxe_type FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pick = cursor.fetchone()
+    for bal in balUF:
+        pass
+    if bal >= 100:
+        if pick == None or pick == ('',):
+            bal -= 100
+            cursor.execute(f"UPDATE `econ` SET `pickAxe_type` = 'Wood', `coins` = {bal}, `pickAxe_dura` = 50 WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.send(f"Purchased a **Wood Pickaxe!** Updated balance: **{bal}** DXC")
+            return
+        else:
+            await ctx.send(f"You already have a Pickaxe")
+    elif bal < 100:
+        await ctx.send(f"You do not have enough Dox Coins! Balance: **{bal}** DXC")
+
+# stone pick
+@buy_cmd.command(name='3')
+async def three_subcom(ctx):
+    userID = ctx.author.id
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balUF = cursor.fetchone()
+    cursor.execute(f"SELECT pickAxe_type FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pick = cursor.fetchone()
+    for bal in balUF:
+        pass
+    if bal >= 200:
+        if pick == None or pick == ('',):
+            bal -= 200
+            cursor.execute(f"UPDATE `econ` SET `pickAxe_type` = 'Stone', `coins` = {bal}, `pickAxe_dura` = 75 WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.send(f"Purchased a **Stone Pickaxe!** Updated balance: **{bal}** DXC")
+            return
+        else:
+            await ctx.send(f"You already have a Pickaxe")
+    elif bal < 200:
+        await ctx.send(f"You do not have enough Dox Coins! Balance: **{bal}** DXC")
+
+# iron pick
+@buy_cmd.command(name='4')
+async def three_subcom(ctx):
+    userID = ctx.author.id
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balUF = cursor.fetchone()
+    cursor.execute(f"SELECT pickAxe_type FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pick = cursor.fetchone()
+    for bal in balUF:
+        pass
+    if bal >= 300:
+        if pick == None or pick == ('',):
+            bal -= 300
+            cursor.execute(f"UPDATE `econ` SET `pickAxe_type` = 'Iron', `coins` = {bal}, `pickAxe_dura` = 100 WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.send(f"Purchased a **Iron Pickaxe!** Updated balance: **{bal}** DXC")
+            return
+        else:
+            await ctx.send(f"You already have a Pickaxe")
+    elif bal < 300:
+        await ctx.send(f"You do not have enough Dox Coins! Balance: **{bal}** DXC")
+
+# gold pick
+@buy_cmd.command(name='5')
+async def three_subcom(ctx):
+    userID = ctx.author.id
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balUF = cursor.fetchone()
+    cursor.execute(f"SELECT pickAxe_type FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pick = cursor.fetchone()
+    for bal in balUF:
+        pass
+    if bal >= 400:
+        if pick == None or pick == ('',):
+            bal -= 400
+            cursor.execute(f"UPDATE `econ` SET `pickAxe_type` = 'Gold', `coins` = {bal}, `pickAxe_dura` = 150 WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.send(f"Purchased a **Gold Pickaxe!** Updated balance: **{bal}** DXC")
+            return
+        else:
+            await ctx.send(f"You already have a Pickaxe")
+    elif bal < 400:
+        await ctx.send(f"You do not have enough Dox Coins! Balance: **{bal}** DXC")
+
+# diamond pick
+@buy_cmd.command(name='6')
+async def three_subcom(ctx):
+    userID = ctx.author.id
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balUF = cursor.fetchone()
+    cursor.execute(f"SELECT pickAxe_type FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    pick = cursor.fetchone()
+    for bal in balUF:
+        pass
+    if bal >= 650:
+        if pick == None or pick == ('',):
+            bal -= 650
+            cursor.execute(f"UPDATE `econ` SET `pickAxe_type` = 'Diamond', `coins` = {bal}, `pickAxe_dura` = 250 WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.send(f"Purchased a **Diamond Pickaxe!** Updated balance: **{bal}** DXC")
+            return
+        else:
+            await ctx.send(f"You already have a Pickaxe")
+    elif bal < 650:
+        await ctx.send(f"You do not have enough Dox Coins! Balance: **{bal}** DXC")
 
 # Run bot
 web_server()
