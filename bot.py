@@ -171,7 +171,7 @@ async def help_cmd(ctx):
         embed = discord.Embed(title="DoxBot Help", description=f"For more info on any command simply do `{pre}help [command]`. Example: `{pre}help dox`", color=0xff6666)
         embed.add_field(name="Music:", value="`play [song]`, `music`, `sfx [sound name]`", inline=False)
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
-        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `mine`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
+        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `mine`, `rob [user]`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
         embed.add_field(name="Starboard:", value="`setstarboard [channel]`, `starthresh [number]`, `highstar`", inline=False)
         embed.add_field(name="Server Stats:", value="`statsetup`, `statsreset`, `removecounter [counter]`, `addcounter [counter]`, `counters`", inline=False)
         embed.add_field(name="Utility:", value="`botidea [idea]`, `bugreport [bug]`, `stats`, `setprefix [prefix]`, `prefix`, `setcountchannel [channel]`, `countinfo`, `setwordchan [channel]`, `wordinfo`, `poll [option 1] or [option 2]`, `cstats [command]`, `lfg [game]`, `tictactoe [player 1] [player2]`, `coinflip`, `avatar [user]`, `support`, `ping`, `server`, `vote`, `invite`, `math`, `donate`, `afk [reason]`, `translate [to lang] [message]`, `languages`, `weather [location]`, `shorturl [url]`, `qr [url]`, `rcolor`", inline=False)
@@ -189,6 +189,16 @@ async def help_cmd(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Help -- {cupGuild} by {cupUser}")
+
+@help_cmd.command(name='rob')
+async def rob_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Rob Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}rob [user]", value=f"Use this command to rob another user. There's a chance you will get away with a lot of money but you could also lose quite a bit. This command can only be used once every 48 hours", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
 
 @help_cmd.command(name='mine')
 async def mine_subcom(ctx):
@@ -1709,18 +1719,19 @@ async def stats(ctx):
     scount = str(len(bot.guilds))
     users = str(len(bot.users))
     ping = round(bot.latency * 1000,2)
-    pyver = sys.version
-    pyverF = pyver.split()[0]
+    cursor.execute("SELECT SUM(used) FROM commands")
+    sumAllUF = cursor.fetchall()
+    sumAll = sumAllUF[0][0]
     embed = discord.Embed(title="DoxBot Stats", color=0xff6666)
     embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
     embed.add_field(name="Servers:", value=scount, inline=True)
     embed.add_field(name="Users:", value=users, inline=True)
-    embed.add_field(name="Commands:", value="154", inline=True)
+    embed.add_field(name="Commands:", value="155", inline=True)
+    embed.add_field(name="Cmds. Run:", value=sumAll, inline=True)
     embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
     embed.add_field(name="Library:", value="Discord.py", inline=True)
-    embed.add_field(name="Py Version:", value=pyverF, inline=True)
     embed.add_field(name="Owner:", value="PapaRaG3#6969", inline=True)
     await ctx.send(embed=embed)
     cursor.execute("SELECT used FROM commands WHERE name = 'stats'")
@@ -1752,9 +1763,7 @@ async def vote(ctx):
         return
     else:
         pass
-    vo = discord.Embed(title = "Vote For DoxBot!", color = discord.Color.gold())
-    vo.add_field(name = "top.gg", value = "https://top.gg/bot/800636967317536778/vote", inline = False)
-    vo.add_field(name = "discordbotlist.com", value = "https://discordbotlist.com/bots/doxbot/upvote", inline = False)
+    vo = discord.Embed(title = "Vote for DoxBot!", description="[Top.gg](https://top.gg/bot/800636967317536778/vote)\n[botsfordiscord.com](https://botsfordiscord.com/bot/800636967317536778/vote)\n[discordbotlist.com](https://discordbotlist.com/bots/doxbot/upvote)\n[discord.boats](https://discord.boats/bot/800636967317536778/vote)\n[inbbotlist.com](https://inbbotlist.com/bots/800636967317536778/vote)", color = discord.Color.gold())
     await ctx.send (embed = vo)
     cursor.execute("SELECT used FROM commands WHERE name = 'vote'")
     used = cursor.fetchone()
@@ -3419,7 +3428,7 @@ async def on_guild_join(guild):
     if(len(result)) == 0:
         cursor.execute("INSERT INTO `prefixes` (`guild_id`, `prefix`) VALUES ('" + str(guildID) + "', '$')")
         db.commit()
-        cupGuild = ctx.guild.name
+        cupGuild = guild.name
         print(f"Added new guild to DB -- {cupGuild}")
         return
 
@@ -3430,15 +3439,20 @@ async def on_message(msg):
     channelID = msg.channel.id
     userID = msg.author.id
     userMen = msg.author.mention
+    user = msg.author
     # prefix
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(guildID))
-    result = cursor.fetchall()
-    if(len(result)) == 0:
+    preUF = cursor.fetchone()
+    if preUF == None or preUF == ('',):
         cursor.execute("INSERT INTO `prefixes` (`guild_id`, `prefix`) VALUES ('" + str(guildID) + "', '$')")
         db.commit()
         cupGuild = msg.guild.name
         print(f"Added guild to DB -- {cupGuild}")
         return
+    elif bot.user.mentioned_in(msg):
+        for pre in preUF:
+            embedPre = discord.Embed(title=f"Prefix for this server: {pre}")
+            await msg.channel.send(embed=embedPre)
     # word game
     if msg.author == bot.user:
         pass
@@ -3664,11 +3678,14 @@ async def cstats(ctx, command):
         userID = ctx.author.id
         cursor.execute("SELECT used FROM commands WHERE name = '" + str(command) +"'")
         comUF = cursor.fetchall()
-        if(len(comUF)) == 0:
+        if command == "all":
             if userID == owner_id:
-                cursor.execute("SELECT * FROM commands")
-                allUF = cursor.fetchall()
-                await ctx.send(allUF)
+                cursor.execute("SELECT SUM(used) FROM commands")
+                sumAllUF = cursor.fetchall()
+                sumAll = sumAllUF[0][0]
+                embed = discord.Embed(title="Commands Run", description=f"Dox has executed **{sumAll}** commands", color=discord.Color.random())
+                embed.set_footer(text=f"Since Febuary 29, 2021 | {userName}  ")
+                await ctx.send(embed=embed)
             else:
                 await ctx.send(f"{userMention} **{command}** Is not a valid command please try again")
         else:
@@ -6337,6 +6354,8 @@ async def gift(ctx, user: discord.User, coins: int):
                                         authBal -= coins
 
                                         cursor.execute(f"UPDATE `econ` SET `coins` = {userBal} WHERE guild_id = {guildID} AND user_id = {userID}")
+                                        cursor.execute(f"UPDATE econ SET coins = {authBal} WHERE guild_id = {guildID} AND user_id = {authID}")
+                                        db.commit()
                                         db.commit()
                                     
                                         await ctx.send(f"Successfully transfered **{coins}** DXC from {authMen} to {userMen}")
@@ -6369,6 +6388,8 @@ async def gift_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
         await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("You forgot to either mention a user or include an amount! Syntax: gift [user] [amount]")
 
 # high low
 @bot.command(aliases=['hl'])
@@ -6772,6 +6793,201 @@ async def rps_error(ctx, error):
         await ctx.send(embed=embed)
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Please include an amount of coins to gamble or a play!")
+
+# rob stuff
+@bot.command()
+@commands.cooldown(1, 172800, commands.BucketType.member)
+async def rob(ctx, user: discord.User):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'rob'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    guildID = ctx.guild.id
+    victID = user.id
+    vict = user
+    authID = ctx.author.id
+    auth =  ctx.author
+    percent_take = random.randint(1,25) / 100
+    success_perc = random.randint(1,100)
+    criminals = 1
+    bail_perc = random.randint(5, 25) / 100
+
+    #check if vict is auth
+    if vict == auth:
+        await ctx.send("You can't rob yourself dumbass")
+        return
+    else:
+        pass
+
+    # check if victim has any coins in the first place
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {victID}")
+    victBalUF = cursor.fetchone()
+    if victBalUF == None or victBalUF == ('',):
+        await ctx.send(f"**{user}** has no DXC so you can't rob them (broke bitch)")
+        return
+    else:
+        for victBal in victBalUF:
+            pass
+
+    # allow additional members to join
+    #await ctx.send(f"Heist started! Type **'join heist'** to join in! You have 1 minute to join. **{auth}** You do not need to join you are already in!")
+
+    #def check(m):
+        #return m.content == 'join heist' and m.channel == ctx.channel
+
+    #while True:
+        #try:
+            #msg = await bot.wait_for('message', timeout=60.0, check=check)
+        #except asyncio.TimeoutError:
+            #await ctx.send(f'Heist started with **{criminals}** criminals')
+            #break
+        #else:
+            #try:
+                #criminals += 1
+                #await ctx.send(f'**{msg.author}** joined the heist')
+            #except asyncio.TimeoutError:
+                #await ctx.send(f"Heist started with **{criminals}** criminals")
+                #break
+
+    take = round(victBal * percent_take, 0)
+
+    if criminals == 1: 
+        cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {authID}")
+        crimBalUF = cursor.fetchone()
+        for crimBal in crimBalUF:
+            take * .5
+            if success_perc >= 1 and success_perc <= 35:
+                success = True
+                pass
+            else:
+                success = False
+                pass
+            if success == True:
+                crimBalIn = round(crimBal + take, 0) 
+                victBalIn = round(victBal - take, 0)
+                cursor.execute(f"UPDATE econ SET coins = {crimBalIn} WHERE guild_id = {guildID} AND user_id = {authID}")
+                cursor.execute(f"UPDATE econ SET coins = {victBalIn} WHERE guild_id = {guildID} AND user_id = {victID}")
+                db.commit()
+                sucEmbed = discord.Embed(title="The Robbery Was a Success!", description=f"{auth.mention} got away with **{take}** DXC and {vict.mention} lost **{take}** DXC!", color=discord.Color.green())
+                await ctx.send(embed=sucEmbed)
+                pass
+            elif success == False:
+                bail_cost = round(crimBal * bail_perc, 0)
+                crimBal -= bail_cost
+                cursor.execute(f"UPDATE econ SET coins = {crimBal} WHERE guild_id = {guildID} AND user_id = {authID}")
+                db.commit()
+                failEmbed = discord.Embed(title="The Robbery Was a Failure!", description=f"{auth.mention} was arrested and had to pay **{bail_cost}** DXC", color=discord.Color.red())
+                await ctx.send(embed=failEmbed)
+                pass
+    #elif criminals > 1:
+        #take / criminals
+        #if criminals == 2:
+            #if success_perc >= 1 and success_perc <= 20:
+                #success = True
+                #pass
+            #else:
+                #success = False
+                #pass
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'rob'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'rob'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Rob -- {cupGuild} by {cupUser}")
+
+@rob.error
+async def rob_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        cooldown = error.retry_after / 3600
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f} hour(s)".format(cooldown))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include someone to rob!")
+
+# owner add coins
+@bot.group(name='coins', invoke_without_command=True)
+async def coins_cmd(ctx):
+    authID = ctx.author.id
+    if authID != owner_id:
+        return
+    else:
+        await ctx.send('add [user] [amount]  |  remove [user] [amount]')
+
+# owner add coins to user
+@coins_cmd.command(name='add')
+async def coinadd_subcom(ctx, amount: int, user: discord.User=None):
+    if ctx.author.id != owner_id:
+        return
+    else:
+        pass
+
+    if user == None:
+        user = ctx.author
+        pass
+    else:
+        user = user
+        pass
+
+    guildID = ctx.guild.id
+    userID = user.id
+
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balCheckUF = cursor.fetchone()
+    if balCheckUF == None or balCheckUF == ('',):
+        cursor.execute(f"INSERT INTO `econ` (`guild_id`, `user_id`, `coins`) VALUES ('{guildID}', '{userID}', '{amount}')")
+        db.commit()
+        await ctx.send(f"Successfully gave {user.mention} **{amount}** DXC")
+        pass
+    else:
+        for balCheck in balCheckUF:
+            balCheck += amount
+            cursor.execute(f"UPDATE econ SET coins = {balCheck} WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.send(f"Successfully gave {user.mention} **{amount}** DXC")
+            pass
+
+# owner remove coins from user
+@coins_cmd.command(name='remove')
+async def coinrem_subcom(ctx, amount: int, user: discord.User=None):
+    if ctx.author.id != owner_id:
+        return
+    else:
+        pass
+
+    if user == None:
+        user = ctx.author
+        pass
+    else:
+        user = user
+        pass
+
+    guildID = ctx.guild.id
+    userID = user.id
+
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    balCheckUF = cursor.fetchone()
+    if balCheckUF == None or balCheckUF == ('',):
+        await ctx.send(f"{user.mention} Has **0** DXC so you can't take any away")
+    else:
+        for balCheck in balCheckUF:
+            if amount > balCheck:
+                await ctx.send(f"{user.mention} only has **{balCheck}** DXC so you can't take that much")
+                return
+            else:
+                balCheck -= amount
+                cursor.execute(f"UPDATE econ SET coins = {balCheck} WHERE guild_id = {guildID} AND user_id = {userID}")
+                db.commit()
+                await ctx.send(f"Successfully removed **{amount}** DXC from {user.mention}")
+                pass
 
 # starboard
 # set chan
