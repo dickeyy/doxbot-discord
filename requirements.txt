@@ -24,3 +24,6 @@ python-dotenv
 flask
 statcord.py
 tweepy
+akinator.py
+discord_buttons_plugin
+discord-py-slash-command

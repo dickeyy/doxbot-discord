@@ -35,6 +35,9 @@ from dotenv import load_dotenv
 from web import web_server
 import statcord
 import tweepy
+import akinator 
+from discord_buttons_plugin import *
+from discord_slash import SlashCommand
 
 load_dotenv()
 
@@ -63,6 +66,8 @@ intents.members = True
 owner_id = 489264179472236557
 bot = commands.Bot(command_prefix = get_prefix, intents=intents, owner_id=489264179472236557)
 bot.remove_command('help')
+buttons = ButtonsClient(bot)
+slash = SlashCommand(bot, sync_commands=True)
 
 # Run startup stuff
 @bot.event
@@ -171,11 +176,11 @@ async def help_cmd(ctx):
         embed = discord.Embed(title="DoxBot Help", description=f"For more info on any command simply do `{pre}help [command]`. Example: `{pre}help dox`", color=0xff6666)
         embed.add_field(name="Music:", value="`play [song]`, `music`, `sfx [sound name]`", inline=False)
         embed.add_field(name="Moderation (Under Development):", value="`disable [command]`, `enable [command]`, `disabledcmds`, `setnote [user] [note]`, `notes [user]`, `deletenote [note id]`, `clearnotes [user]`")
-        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `mine`, `rob [user]`, `gift [user] [amount]`, `highlow`, `richest`, `rps [bet] [move]`", inline=False)
+        embed.add_field(name="Economy (Under Development):", value="`balance [optional user]`, `beg`, `daily`, `slots [amount]`, `fish`, `shop`, `buy [shop number]`, `mine`, `rob [user]`, `gift [user] [amount]`, `highlow`, `richest`, `leaderboard coins`, `rps [bet] [move]`", inline=False)
         embed.add_field(name="Starboard:", value="`setstarboard [channel]`, `starthresh [number]`, `highstar`", inline=False)
         embed.add_field(name="Server Stats:", value="`statsetup`, `statsreset`, `removecounter [counter]`, `addcounter [counter]`, `counters`", inline=False)
         embed.add_field(name="Utility:", value="`botidea [idea]`, `bugreport [bug]`, `stats`, `setprefix [prefix]`, `prefix`, `setcountchannel [channel]`, `countinfo`, `setwordchan [channel]`, `wordinfo`, `poll [option 1] or [option 2]`, `cstats [command]`, `lfg [game]`, `tictactoe [player 1] [player2]`, `coinflip`, `avatar [user]`, `support`, `ping`, `server`, `vote`, `invite`, `math`, `donate`, `afk [reason]`, `translate [to lang] [message]`, `languages`, `weather [location]`, `shorturl [url]`, `qr [url]`, `rcolor`", inline=False)
-        embed.add_field(name="Fun:", value="`dox [optional user]`, `doesntexist`, `pp [user]`, `hate [user]`, `love [user]`, `set [socialmedia] [username]`, `socialsinfo`, `meme`, `virgin [user]`, `reddit [subreddit]`, `nsfw`, `iq [user]`, `embarrass [user]`, `8ball [question]`, `dog`, `cat`, `gif [search]`, `dadjoke`, `affirmation`, `say [message]`, `roast [optional user]`, `wanted [optional user]`, `todayinhistory`, `lovetest [user]`, `sex [user]`")
+        embed.add_field(name="Fun:", value="`dox [optional user]`, `aki`, `doesntexist`, `pp [user]`, `hate [user]`, `love [user]`, `set [socialmedia] [username]`, `socialsinfo`, `meme`, `virgin [user]`, `reddit [subreddit]`, `nsfw`, `iq [user]`, `embarrass [user]`, `8ball [question]`, `dog`, `cat`, `gif [search]`, `dadjoke`, `affirmation`, `say [message]`, `roast [optional user]`, `wanted [optional user]`, `todayinhistory`, `lovetest [user]`, `sex [user]`, `cringe [optional user]`, `urban [word]`")
         embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
         embed.timestamp = datetime.datetime.utcnow()
         embed.set_footer(text=f"Prefix for this server: {pre}  |  {ctx.author} \u200b")
@@ -189,6 +194,46 @@ async def help_cmd(ctx):
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Help -- {cupGuild} by {cupUser}")
+
+@help_cmd.command(name='aki')
+async def aki_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Aki Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}aki [command]", value=f"Use this to get a list of available Akinator commands. The most common one is `aki start` which will start a game", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='urban')
+async def urban_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Urban Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}urban [word]", value=f"Use this to look up a word on Urban Dictionary. Please only use one word", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='cringe')
+async def cringe_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Cringe Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}cringe [optional user]", value=f"Use this to cringe, you can just cringe or you can cringe at someone", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
+
+@help_cmd.command(name='leaderboard')
+async def leaderboard_subcom(ctx):
+    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
+    prefix = cursor.fetchone()
+    for pre in prefix:
+        embed = discord.Embed(title="Leaderboard Command Help", color=0xff6666)
+        embed.add_field(name=f"{pre}leaderboard [name]", value=f"Use this command to see the leaderboard for a variety of different things. Use `leaderboard` to get a list of available leaderboards", inline=False)
+        embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
+        await ctx.send(embed=embed)
 
 @help_cmd.command(name='rob')
 async def rob_subcom(ctx):
@@ -1060,7 +1105,7 @@ async def disable_subcom(ctx):
     prefix = cursor.fetchone()
     for pre in prefix:
         embed = discord.Embed(title="Disable Command Help", color=0xff6666)
-        embed.add_field(name=f"{pre}disable [command]", value=f"Use this to disable a specific command. Please write out the desired [command] as it appears in the help command. Requires 'Administrator' permission", inline=False)
+        embed.add_field(name=f"{pre}disable [command]", value=f"Use this to disable a specific command. Please write out the desired [command] as it appears in the help command. For commands like `aki` where there are different subcommands, just use the base command i.e. `aki`. Requires 'Administrator' permission", inline=False)
         embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
         await ctx.send(embed=embed)
 
@@ -1726,7 +1771,7 @@ async def stats(ctx):
     embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
     embed.add_field(name="Servers:", value=scount, inline=True)
     embed.add_field(name="Users:", value=users, inline=True)
-    embed.add_field(name="Commands:", value="155", inline=True)
+    embed.add_field(name="Commands:", value="162", inline=True)
     embed.add_field(name="Cmds. Run:", value=sumAll, inline=True)
     embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
@@ -3450,6 +3495,10 @@ async def on_message(msg):
         print(f"Added guild to DB -- {cupGuild}")
         return
     elif bot.user.mentioned_in(msg):
+        if "@everyone" in msg.content:
+            return
+        else:
+            pass
         for pre in preUF:
             embedPre = discord.Embed(title=f"Prefix for this server: {pre}")
             await msg.channel.send(embed=embedPre)
@@ -3717,7 +3766,7 @@ async def cstats_error(ctx, error):
 @bot.command()
 @commands.cooldown(1,1,commands.BucketType.guild)
 async def set(message, social, account):
-    guildID = ctx.guild.id
+    guildID = message.guild.id
     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'set'")
     cmdCheck = cursor.fetchone()
     if cmdCheck != None:
@@ -6395,108 +6444,104 @@ async def gift_error(ctx, error):
 @bot.command(aliases=['hl'])
 @commands.cooldown(1, 15, commands.BucketType.member)
 async def highlow(ctx):
-    guildID = ctx.guild.id
-    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'highlow'")
+    AguildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {AguildID} AND command = 'highlow'")
     cmdCheck = cursor.fetchone()
     if cmdCheck != None:
         return
     else:
         pass
+    global num
     num = random.randint(0, 100)
+    global hint
     hint = random.randint(0, 100)
-    earn = random.randint(20, 300)
+    global earn
+    earn = random.randint(20, 200)
+    global guildID
     guildID = ctx.guild.id
+    global userID
     userID = ctx.author.id
 
     cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} AND user_id = {userID}")
+    global balUF
     balUF = cursor.fetchone()
 
-    embed = discord.Embed(title=f"Higher / Lower Hint: {hint}", description=f"A random number between 1 and 100 has been chosen. Your hint is **{hint}**. React with ⬆️ if you think the number is higher than the hint, ⬇️ if it's lower, or ⭐ if the hint is the number! You have 1 minute.")
-    react = await ctx.send(embed=embed)
-    await react.add_reaction("⬆️")
-    await react.add_reaction("⬇️")
-    await react.add_reaction("⭐")
-
-    def check(reaction, user):
-        return user == ctx.author and str(reaction.emoji) in ["⬆️", "⬇️", "⭐"]
-
-    while True:
-        try:
-            reaction, user = await bot.wait_for("reaction_add", timeout=60, check=check)
-
-            if user == bot.user:
-                break
-
-            else:
-                if str(reaction.emoji) == "⬆️":
-                    if num > hint:
-                        if balUF == None:
-                            cursor.execute(f"INSERT INTO `econ` (`guild_id`, `user_id`, `coins`, `day_streak`, `fishingpole`, `fishpole_dura`) VALUES ('{guildID}', '{userID}', '{earn}', '', '', '50')")
-                            db.commit()
-                            await ctx.send(f"Congrats the number was {num}! You earned **{earn}** DXC")
-                            pass
-                        else:
-                            for bal in balUF:
-                                bal += earn
-                                cursor.execute(f"UPDATE `econ` SET `coins` = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
-                                await ctx.send(f"Congrats the number was {num}! You earned **{earn}** DXC")
-                                pass
-                    else:
-                        await ctx.send(f"Nope the number was {num}! You earned **0** DXC")
-                        pass
-                    break
-
-                elif str(reaction.emoji) == "⬇️":
-                    if num < hint:
-                        if balUF == None:
-                            cursor.execute(f"INSERT INTO `econ` (`guild_id`, `user_id`, `coins`, `day_streak`, `fishingpole`, `fishpole_dura`) VALUES ('{guildID}', '{userID}', '{earn}', '', '', '50')")
-                            db.commit()
-                            await ctx.send(f"Congrats the number was {num}! You earned **{earn}** DXC")
-                            pass
-                        else:
-                            for bal in balUF:
-                                bal += earn
-                                cursor.execute(f"UPDATE `econ` SET `coins` = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
-                                await ctx.send(f"Congrats the number was {num}! You earned **{earn}** DXC")
-                                pass
-                    else:
-                        await ctx.send(f"Nope the number was {num}! You earned **0** DXC")
-                        pass
-                    break
-                
-                elif str(reaction.emoji) == "⭐":
-                    if num == hint:
-                        if balUF == None:
-                            cursor.execute(f"INSERT INTO `econ` (`guild_id`, `user_id`, `coins`, `day_streak`, `fishingpole`, `fishpole_dura`) VALUES ('{guildID}', '{userID}', '{earn}', '', '', '50')")
-                            db.commit()
-                            await ctx.send(f"Congrats the number was {num}! You earned **{earn}** DXC")
-                            pass
-                        else:
-                            for bal in balUF:
-                                bal += earn
-                                cursor.execute(f"UPDATE `econ` SET `coins` = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
-                                await ctx.send(f"Congrats the number was {num}! You earned **{earn}** DXC")
-                                pass
-                    else:
-                        await ctx.send(f"Nope the number was {num}! You earned **0** DXC")
-                        pass
-                    break
-
-                else:
-                    await message.remove_reaction(reaction, user)
-                            
-        except asyncio.TimeoutError:
-            await ctx.send("You didn't answer in time! You earned **0** coins")
-            break
+    embed = discord.Embed(title=f"Higher / Lower | Hint: {hint}", description=f"A random number between 1 and 100 has been chosen. Your hint is **{hint}**. Chose one of the buttons below, higher if the number is higher than the hint, lower if the number is lower than the hint, or equal if the number is equal to the hint.")
+    global message
+    message = await buttons.send(
+        embed = embed,
+        channel = ctx.channel.id,
+        components = [
+            ActionRow([
+                Button(
+                    label = "Higher",
+                    style = ButtonType().Secondary,
+                    custom_id = "HL_b1",
+                ),
+                Button(
+                    label = "Lower", 
+                    style = ButtonType().Secondary,
+                    custom_id = "HL_b2",
+                ),
+                Button(
+                    label = "Equal",
+                    style = ButtonType().Secondary,
+                    custom_id = "HL_b3",
+                )
+            ])
+        ]
+    )
     cursor.execute("SELECT used FROM commands WHERE name = 'highlow'")
     used = cursor.fetchone()
-    for num in used:
-      num += 1
-      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'highlow'")
+    for numU in used:
+      numU += 1
+      cursor.execute("UPDATE commands SET used = '" + str(numU) + "' WHERE name = 'highlow'")
       db.commit()
     cupGuild = ctx.guild.name
     cupUser = ctx.author
     print(f"Highlow -- {cupGuild} by {cupUser}")
+
+@buttons.click
+async def HL_b1(ctx):
+    if num > hint:
+        for bal in balUF:
+            bal += earn
+            cursor.execute(f"UPDATE econ SET coins = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.reply(f"**Higher Lower:** Congrats! The number was **{num}**, you earned **{earn} DXC** and your new balance is **{bal} DXC**")
+            pass
+    else:
+        await ctx.reply(f"**Higher Lower:** Nope! The number was **{num}**")
+        pass
+    await ctx.message.delete()
+
+@buttons.click
+async def HL_b2(ctx):
+    if num < hint:
+        for bal in balUF:
+            bal += earn
+            cursor.execute(f"UPDATE econ SET coins = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.reply(f"**Higher Lower:** Congrats! The number was **{num}**, you earned **{earn} DXC** and your new balance is **{bal} DXC**")
+            pass
+    else:
+        await ctx.reply(f"**Higher Lower:** Nope! The number was **{num}**")
+        pass
+    await ctx.message.delete()
+
+@buttons.click
+async def HL_b3(ctx):
+    if num == hint:
+        for bal in balUF:
+            bal += earn
+            cursor.execute(f"UPDATE econ SET coins = {bal} WHERE guild_id = {guildID} AND user_id = {userID}")
+            db.commit()
+            await ctx.reply(f"**Higher Lower:** Congrats! The number was **{num}**, you earned **{earn} DXC** and your new balance is **{bal} DXC**")
+            pass
+    else:
+        await ctx.reply(f"**Higher Lower:** Nope! The number was **{num}**")
+        pass
+    await ctx.message.delete()
 
 @highlow.error
 async def highlow_error(ctx, error):
@@ -6840,7 +6885,7 @@ async def rob(ctx, user: discord.User):
 
     #while True:
         #try:
-            #msg = await bot.wait_for('message', timeout=60.0, check=check)
+            #msg = await ('message', timeout=60.0, check=check)
         #except asyncio.TimeoutError:
             #await ctx.send(f'Heist started with **{criminals}** criminals')
             #break
@@ -8365,6 +8410,409 @@ async def three_subcom(ctx):
             await ctx.send(f"You already have a Pickaxe")
     elif bal < 650:
         await ctx.send(f"You do not have enough Dox Coins! Balance: **{bal}** DXC")
+
+# leaderboards
+@bot.group(name="leaderboard", invoke_without_command=True)
+async def lead_cmd(ctx):
+    embed = discord.Embed(title="Leaderboard Commands", description="To use: type `leaderboard [name]` the names are down below", color=discord.Color.random())
+    embed.add_field(name="coins", value="Get the leaderboard for coins in your server", inline=False)
+    await ctx.send(embed=embed)
+    cursor.execute("SELECT used FROM commands WHERE name = 'leaderboard'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'leaderboard'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Leaderboard -- {cupGuild} by {cupUser}")
+
+# coins leaderboard
+@lead_cmd.command(name='coins')
+@commands.cooldown(1,1,commands.BucketType.guild)
+async def coins_lead_subcom(ctx):
+    authID = ctx.author.id
+    authName = ctx.author.name
+    guildID = ctx.guild.id
+    guildName = ctx.guild.name
+
+    cursor.execute(f"SELECT coins FROM econ WHERE guild_id = {guildID} ORDER BY coins DESC")
+    coins_listUF = cursor.fetchall()
+    coins_list_len = len(coins_listUF)
+    for coins_list in coins_listUF:
+        pass
+
+    embed = discord.Embed(title=f"Economy Leaderboard For {guildName}", color=discord.Color.random())
+    embed.set_footer(text=f"{authName} | Top 5 Users")
+
+    try:
+        for coins0 in coins_listUF[0]:
+            pass
+        cursor.execute(f"SELECT user_id FROM econ WHERE guild_id = {guildID} AND coins = {coins0}")
+        user0UF = cursor.fetchone()
+        for user0 in user0UF:
+            pass
+        userName0 = await bot.fetch_user(user0)
+        embed.add_field(name=f"1. {userName0}", value=f"{coins0} DXC", inline=False)
+
+        try:
+            for coins1 in coins_listUF[1]:
+                pass
+            cursor.execute(f"SELECT user_id FROM econ WHERE guild_id = {guildID} AND coins = {coins1}")
+            user1UF = cursor.fetchone()
+            for user1 in user1UF:
+                pass
+            userName1 = await bot.fetch_user(user1)
+            embed.add_field(name=f"2. {userName1}", value=f"{coins1} DXC", inline=False)
+
+            try:
+                for coins2 in coins_listUF[2]:
+                    pass
+                cursor.execute(f"SELECT user_id FROM econ WHERE guild_id = {guildID} AND coins = {coins2}")
+                user2UF = cursor.fetchone()
+                for user2 in user2UF:
+                    pass
+                userName2 = await bot.fetch_user(user2)
+                embed.add_field(name=f"3. {userName2}", value=f"{coins2} DXC", inline=False)
+
+                try:
+                    for coins3 in coins_listUF[3]:
+                        pass
+                    cursor.execute(f"SELECT user_id FROM econ WHERE guild_id = {guildID} AND coins = {coins3}")
+                    user3UF = cursor.fetchone()
+                    for user3 in user3UF:
+                        pass
+                    userName3 = await bot.fetch_user(user3)
+                    embed.add_field(name=f"4. {userName3}", value=f"{coins3} DXC", inline=False)
+
+                    try:
+                        for coins4 in coins_listUF[4]:
+                            pass
+                        cursor.execute(f"SELECT user_id FROM econ WHERE guild_id = {guildID} AND coins = {coins4}")
+                        user4UF = cursor.fetchone()
+                        for user4 in user4UF:
+                            pass
+                        userName4 = await bot.fetch_user(user4)
+                        embed.add_field(name=f"5. {userName4}", value=f"{coins4} DXC", inline=False)
+                        
+                    except:
+                        pass
+                except:
+                    pass
+            except:
+                pass
+        except:
+            pass
+    except:
+        pass
+
+    await ctx.send(embed=embed)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'coins_leaderboard'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'coins_leaderboard'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Coins Leaderboard -- {cupGuild} by {cupUser}")
+
+# cringe command
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+async def cringe(ctx, user: discord.User=None):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'cringe'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+
+    if user != None:
+        await ctx.send(f"{user.mention} Cringe")
+        pass
+    
+    api_key=os.getenv('GIPHYAPI')
+    api_instance = giphy_client.DefaultApi()
+    my_channel = bot.get_channel(825193245445324810)
+    q = "cringe"
+
+    try: 
+    # Search Endpoint
+        
+        api_response = api_instance.gifs_search_get(api_key, q, limit=100, rating='r')
+        lst = list(api_response.data)
+        giff = random.choice(lst)
+        user = ctx.message.author
+
+        emb = discord.Embed(url=f'https://media.giphy.com/media/{giff.id}/giphy.gif', color=discord.Color.random())
+        emb.set_image(url = f'https://media.giphy.com/media/{giff.id}/giphy.gif')
+
+        await ctx.channel.send(embed=emb)
+
+    except ApiException as e:
+      timestamp = datetime.now()
+      apierror = discord.Embed(title="GIPHY API ERROR", color=discord.Color.red())
+      apierror.add_field(name="Exception when calling DefaultApi", value="gifs_search_get: %s\n" % e, inline=False)
+      apierror.set_footer(text=f"{timestamp}")
+      await my_channel.send(embed=apierror)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'cringe'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'cringe'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Cringe -- {cupGuild} by {cupUser}")
+
+@cringe.error
+async def cringe_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
+#urban dict
+@bot.command()
+@commands.cooldown(1,1,commands.BucketType.guild)
+async def urban(ctx, *term):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'urban'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+
+    url = "https://mashape-community-urban-dictionary.p.rapidapi.com/define"
+
+    querystring = {"term":term}
+
+    headers = {
+        'x-rapidapi-key': "ff4fdc9533msh82425dbe3f15b31p195105jsn02cd7bdabde2",
+        'x-rapidapi-host': "mashape-community-urban-dictionary.p.rapidapi.com"
+        }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    res = response.json()
+
+    definition = res["list"][0]['definition']
+    link = res["list"][0]['permalink']
+    thumbsUp = res["list"][0]['thumbs_up']
+    thumbsDown = res["list"][0]['thumbs_down']
+    author = res["list"][0]['author']
+    example = res["list"][0]['example']
+    word = res["list"][0]['word']
+    
+    embed = discord.Embed(title=word, url=link, description=f"**Def:** {definition}\n\nExample:\n{example}", color=discord.Color.blue())
+    embed.set_author(name=f"By: {author}")
+    embed.set_footer(text=f"👍: {thumbsUp} | 👎: {thumbsDown}")
+
+    await ctx.send(embed=embed)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'urban'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'urban'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Urban -- {cupGuild} by {cupUser}")
+
+@urban.error
+async def urban_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Please include a word to search on Urban Dictionary")
+
+# Akinator
+@bot.group(name="aki", invoke_without_command=True)
+async def aki_cmd(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'aki'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+
+    embed = discord.Embed(title="Akinator Commands", color=discord.Color.random())
+    embed.add_field(name="1. start", value="Use this to start a game", inline=False)
+    embed.add_field(name="2. answers", value="Use this to see valid answers to Akinators questions", inline=False)
+    
+    await ctx.send(embed=embed)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'akinator'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'akinator'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Aki -- {cupGuild} by {cupUser}")
+
+@aki_cmd.command(name="start")
+async def aki_start_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'aki'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+
+    await ctx.send("Akinator game starting please wait...")
+
+    # get game stats
+    cursor.execute(f"SELECT games_total FROM aki_stats")
+    gamesTotalUF = cursor.fetchone()
+    for gamesTotal in gamesTotalUF:
+        pass
+    gamesTotal += 1
+    cursor.execute(f"UPDATE `aki_stats` SET `games_total`={gamesTotal}")
+    db.commit()
+
+    cursor.execute(f"SELECT won FROM aki_stats")
+    gamesWonUF = cursor.fetchone()
+    for gamesWon in gamesWonUF:
+        pass
+
+    cursor.execute(f"SELECT lost FROM aki_stats")
+    gamesLostUF = cursor.fetchone()
+    for gamesLost in gamesLostUF:
+        pass
+
+    # start game
+    aki = akinator.Akinator()
+    ques = aki.start_game(language=None)
+
+    Qembed = discord.Embed(title=ques)
+    Qembed.set_footer(text="Answer with yes, no, idk, probably, probably not, or back")
+
+    await ctx.send(embed=Qembed)
+
+    def check(m):
+        return m.content == 'yes' or m.content == 'no' or m.content == 'back'  or m.content == 'idk'  or m.content == 'probably'  or m.content == 'probably not' or m.content == 'y'  or m.content == 'n'  or m.content == 'b'  or m.content == 'i'  or m.content == 'p'  or m.content == 'pn' and m.channel == ctx.channel and m.author == ctx.author
+
+    # wait for answer
+    while aki.progression <= 80:
+        try:
+            ans = await bot.wait_for('message', timeout=60.0, check=check)
+        except asyncio.TimeoutError:
+            await ctx.send("You didn't answer in time. Game ended")
+            break
+            return
+        else:
+            if ctx.message.content == 'back':
+                try:
+                    ques = aki.back()
+                except akinator.CantGoBackAnyFurther:
+                    await ctx.send("You can't go back any further")
+                    pass
+            else:
+                ques = aki.answer(ans.content)
+                Qembed2 = discord.Embed(title=ques)
+                Qembed2.set_footer(text="Answer with yes, no, idk, probably, probably not, or back")
+                await ctx.send(embed=Qembed2)
+
+    # aki win?
+    win = aki.win()
+    name = win['name']
+    desc = win['description']
+    pic = win['absolute_picture_path']
+
+    embed = discord.Embed(title="Is Your Character...", description=f"**{name}**\n{desc}", color=discord.Color.gold())
+    embed.set_image(url=pic)
+    embed.set_footer(text="Answer with 'yes' or 'no'")
+    await ctx.send(embed=embed)
+
+    # wait for answer
+    def check2(m):
+        return m.content == 'yes' or m.content == 'no'  or m.content == 'y'  or m.content == 'n' and m.channel == ctx.channel and m.author == ctx.author
+
+    while True:
+        try:
+            winTrue = await bot.wait_for('message', timeout=60.0, check=check2)
+        except asyncio.TimeoutError:
+            await ctx.send("You didn't answer in time, I guess I win?")
+            break
+            return
+        else:
+            if winTrue.content == 'yes' or winTrue.content == 'y':
+                gamesWon += 1
+                cursor.execute(f"UPDATE `aki_stats` SET `won`={gamesWon}")
+                db.commit()
+                WinEmbed = discord.Embed(title="HAHA I win!", description=f"I've won **{gamesWon}** games", color=discord.Color.green())
+                await ctx.send(embed=WinEmbed)
+                break
+            elif winTrue.content == 'no' or winTrue.content == 'n':
+                gamesLost += 1
+                cursor.execute(f"UPDATE `aki_stats` SET `lost`={gamesLost}")
+                db.commit()
+                LossEmbed = discord.Embed(title="Dang! You Won...", description=f"I've lost **{gamesLost}** games", color=discord.Color.red())
+                await ctx.send(embed=LossEmbed)
+                break
+    
+    cursor.execute("SELECT used FROM commands WHERE name = 'aki start'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'aki start'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Aki Start -- {cupGuild} by {cupUser}")
+ 
+@aki_cmd.command(name="answers")
+async def aki_ans_subcom(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'aki'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+
+    embed = discord.Embed(title="Valid Akinator Answers", description="yes/y, no/n, idk/i, probably/p, probably not/pn, back/b", color=discord.Color.random())
+    await ctx.send(embed=embed)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'aki answers'")
+    used = cursor.fetchone()
+    for num in used:
+      num += 1
+      cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'aki answers'")
+      db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Aki answers -- {cupGuild} by {cupUser}")
+
+# slash commands section
+# meme slash
+@slash.slash(name="meme", description="Sends a random meme from a selection of SubReddits")
+async def s_meme(ctx):
+    r = requests.get("https://memes.blademaker.tv/api?lang=en")
+    res = r.json()
+    title = res["title"]
+    ups = res["ups"]
+    downs = res["downs"]
+    sub = res["subreddit"]
+    link = "https://reddit.com/" + res["id"]
+    author = res["author"]
+    m = discord.Embed(title = f"{title}", url = f"{link}",color = discord.Color.orange())
+    m.set_image(url = res["image"])
+    m.set_footer(text=f"👍: {ups}    Author: {author}")
+    await ctx.send(embed = m)
 
 # Run bot
 web_server()
