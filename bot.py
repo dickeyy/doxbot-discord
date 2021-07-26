@@ -2202,8 +2202,19 @@ async def invite(ctx):
         return
     else:
         pass
-    invem = discord.Embed(title = 'Invite DoxBot to Your Server!', description='[Click Here](https://doxbot.xyz/invite)', color = discord.Color.gold())
-    await ctx.send(embed = invem)
+    await buttons.send(
+        content = "Invite DoxBot to your server!",
+        channel = ctx.channel.id,
+        components = [
+            ActionRow([
+                Button(
+                    label = "Click Here",
+                    style = ButtonType().Link,
+                    url = "https://doxbot.xyz/invite"
+                )
+            ])
+        ]
+    )
     cursor.execute("SELECT used FROM commands WHERE name = 'invite'")
     used = cursor.fetchone()
     for num in used:
@@ -8797,10 +8808,19 @@ async def aki_ans_subcom(ctx):
     cupUser = ctx.author
     print(f"Aki answers -- {cupGuild} by {cupUser}")
 
-# slash commands section
+# slash commands section theres a lot of shit here might make this into a seperate file
+
 # meme slash
 @slash.slash(name="meme", description="Sends a random meme from a selection of SubReddits")
+@commands.cooldown(1,1,commands.BucketType.guild)
 async def s_meme(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'meme'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
     r = requests.get("https://memes.blademaker.tv/api?lang=en")
     res = r.json()
     title = res["title"]
@@ -8813,6 +8833,167 @@ async def s_meme(ctx):
     m.set_image(url = res["image"])
     m.set_footer(text=f"👍: {ups}    Author: {author}")
     await ctx.send(embed = m)
+    cursor.execute("SELECT used FROM commands WHERE name = 'meme'")
+    used = cursor.fetchone()
+    for num in used:
+        num += 1
+        cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'meme'")
+        db.commit()
+        cupGuild = ctx.guild.name
+        cupUser = ctx.author
+        print(f"Meme -- {cupGuild} by {cupUser}")
+
+@s_meme.error
+async def s_meme_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
+# invite slash
+@slash.slash(name="invite", description="Get the bots invite link to add it to your server!")
+@commands.cooldown(1,1,commands.BucketType.guild)
+async def s_invite(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'invite'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    await buttons.send(
+        content = "Invite DoxBot to your server!",
+        channel = ctx.channel.id,
+        components = [
+            ActionRow([
+                Button(
+                    label = "Click Here",
+                    style = ButtonType().Link,
+                    url = "https://doxbot.xyz/invite"
+                )
+            ])
+        ]
+    )
+    cursor.execute("SELECT used FROM commands WHERE name = 'invite'")
+    used = cursor.fetchone()
+    for num in used:
+        num += 1
+        cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'invite'")
+        db.commit()
+        cupGuild = ctx.guild.name
+        cupUser = ctx.author
+        print(f"Invite -- {cupGuild} by {cupUser}")
+
+@s_invite.error
+async def s_invite_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
+# stats slash
+@slash.slash(name="stats", description="Get some interesting stats about the bot")
+@commands.cooldown(1,1,commands.BucketType.guild)
+async def s_stats(ctx):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'stats'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    cpu = psutil.cpu_percent()
+    mem = psutil.virtual_memory()[2]
+    scount = str(len(bot.guilds))
+    users = str(len(bot.users))
+    ping = round(bot.latency * 1000,2)
+    cursor.execute("SELECT SUM(used) FROM commands")
+    sumAllUF = cursor.fetchall()
+    sumAll = sumAllUF[0][0]
+    embed = discord.Embed(title="DoxBot Stats", color=0xff6666)
+    embed.set_thumbnail(url="https://doxbot.xyz/images/doxlogo2")
+    embed.add_field(name="Servers:", value=scount, inline=True)
+    embed.add_field(name="Users:", value=users, inline=True)
+    embed.add_field(name="Commands:", value="162", inline=True)
+    embed.add_field(name="Cmds. Run:", value=sumAll, inline=True)
+    embed.add_field(name="CPU Usage:", value=f"{cpu}%", inline=True)
+    embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
+    embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
+    embed.add_field(name="Library:", value="Discord.py", inline=True)
+    embed.add_field(name="Owner:", value="PapaRaG3#6969", inline=True)
+    await ctx.send(embed=embed)
+    cursor.execute("SELECT used FROM commands WHERE name = 'stats'")
+    used = cursor.fetchone()
+    for num in used:
+        num += 1
+        cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'stats'")
+        db.commit()
+        cupGuild = ctx.guild.name
+        cupUser = ctx.author
+        print(f"Stats -- {cupGuild} by {cupUser}")
+
+@s_stats.error
+async def s_stats_error(ctx, error):
+    coolDownMsg = random.choice(coolDown_list)
+    print(error)
+    if isinstance(error, commands.CommandOnCooldown):
+        embed = discord.Embed(title=f"{coolDownMsg}", description="Try again in {:.2f}s".format(error.retry_after))
+        await ctx.send(embed=embed)
+
+# dox slash
+@slash.slash(name="dox",
+            description="Use this to get 100% real info about someone wink wink.",
+            options=[
+                create_option(
+                    name="User",
+                    description="Who you want to dox, if left blank, you will be doxxed",
+                    option_type=2,
+                    required=False
+                )
+            ])
+async def s_dox(ctx, User: str = None):
+    guildID = ctx.guild.id
+    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'dox'")
+    cmdCheck = cursor.fetchone()
+    if cmdCheck != None:
+        return
+    else:
+        pass
+    identity = getIdentity()
+
+    if User == None:
+        userName = ctx.author.name
+    else:
+        userName = User
+
+    embed = discord.Embed(title=f"Doxing {userName}...", color=discord.Color.red())
+    embed.add_field(name="Full Name:", value=identity.name, inline=False)
+    embed.add_field(name="Height:", value=identity.height + " / " + identity.heightcm + " cm", inline=False)
+    embed.add_field(name="Weight:", value=identity.weight + "lbs / " + identity.weightkg + "kg", inline=False)
+    embed.add_field(name="Birthday:", value=identity.birthday, inline=False)
+    embed.add_field(name="Address:", value=identity.address, inline=False)
+    embed.add_field(name="Coordinates:", value=identity.coords, inline=False)
+    embed.add_field(name="Email:", value=identity.email, inline=False)
+    embed.add_field(name="Phone Number:", value=identity.phone, inline=False)
+    embed.add_field(name="Discord Password:", value=identity.password, inline=False)
+    embed.add_field(name="SSN:", value=identity.ssn, inline=False)
+    embed.add_field(name="Credit Card:", value="Num: " + identity.card + " Exp: " + identity.expiration + " CVV: " + identity.cvv2, inline=False)
+    embed.timestamp = datetime.datetime.utcnow()
+    embed.set_footer(text=f"Requested by: {ctx.author} \u200b")
+
+    await ctx.send(embed = embed)
+
+    cursor.execute("SELECT used FROM commands WHERE name = 'dox'")
+    used = cursor.fetchone()
+    for num in used:
+        num += 1
+        cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'dox'")
+        db.commit()
+    cupGuild = ctx.guild.name
+    cupUser = ctx.author
+    print(f"Dox -- {cupGuild} by {cupUser}")
 
 # Run bot
 web_server()
