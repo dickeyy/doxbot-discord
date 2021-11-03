@@ -85,14 +85,14 @@ async def on_command(ctx):
     StatCordapi.command_run(ctx)
 
 # twitter bot
-consumer_key = os.getenv("TWITKEY")
-consumer_secret = os.getenv("TWITSEC")
-access_token = os.getenv("TWITTOKEN")
-access_token_secret = os.getenv("TWITTOKSEC")
+consumerKey = os.getenv("TWITKEY")
+consumerSecret = os.getenv("TWITSEC")
+accessToken = os.getenv("TWITTOKEN")
+accessTokenSecret = os.getenv("TWITTOKSEC")
 
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth = tweepy.OAuthHandler(consumerKey, consumerSecret)
 
-auth.set_access_token(access_token, access_token_secret)
+auth.set_access_token(accessToken, accessTokenSecret)
 
 TwitApi = tweepy.API(auth)
 
