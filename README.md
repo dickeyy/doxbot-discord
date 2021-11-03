@@ -2,7 +2,7 @@
 
 <h3>DoxBot is the last Discord bot you'll ever need.</h3>
 <br>
-<h4>━━━━━━━━━━DoxBot's Top Features━━━━━━━━━━</h4>
+<h4>━━━━━━━━━━ DoxBot's Top Features ━━━━━━━━━━</h4>
 <p>• Completely free music commands that other music bots hide behind a paywall </p>
 • Powerful moderation </p>
 • Customizable starboard </p>
