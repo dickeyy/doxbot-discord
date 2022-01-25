@@ -1074,7 +1074,7 @@ async def wordinfo_subcom(ctx):
     cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(ctx.guild.id))
     prefix = cursor.fetchone()
     for pre in prefix:
-        embed = discord.Embed(title="Word Game Info", description="The word game is simple, in the designated channel (found with `wordchan`) one user will send a word then the next user will have to start their word with the last letter of the word before. Example: PapaRaG3: Dog DoxBot: God PapaRaG3: Dude. And so on", color=discord.Color.random())
+        embed = discord.Embed(title="Word Game Info", description="The word game is simple, in the designated channel (found with `wordchan`) one user will send a word then the next user will have to start their word with the last letter of the word before. Example: dickey: Dog DoxBot: God dickey: Dude. And so on", color=discord.Color.random())
         embed.add_field(name=f"Commands (for more info use `{pre}help [command]`)", value="`setwordchan [channel]`, `wordchan`, `wordhigh`")
         embed.add_field(name="Links", value="[🌐 Website](https://doxbot.xyz) | [<:invite:823987169978613851> Invite](https://doxbot.xyz/invite) | [<:upvote:823988328306049104> Upvote](https://top.gg/bot/800636967317536778/vote) | [<:discord:823989269626355793> Support](https://discord.com/invite/zs7UwgBZb9) | [<:paypal:824766297685491722> Donate](https://doxbot.xyz/donate)", inline=False)
         await ctx.send(embed=embed)
@@ -1777,7 +1777,7 @@ async def stats(ctx):
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
     embed.add_field(name="Library:", value="Discord.py", inline=True)
-    embed.add_field(name="Owner:", value="PapaRaG3#6969", inline=True)
+    embed.add_field(name="Owner:", value="dickey#6969", inline=True)
     await ctx.send(embed=embed)
     cursor.execute("SELECT used FROM commands WHERE name = 'stats'")
     used = cursor.fetchone()
@@ -3513,6 +3513,25 @@ async def on_message(msg):
         for pre in preUF:
             embedPre = discord.Embed(title=f"Prefix for this server: {pre}")
             await msg.channel.send(embed=embedPre)
+
+    # stuff to announce a message to all servers
+    cursor.execute(f"SELECT guild_id FROM dont_broad WHERE guild_id = {guildID}")
+    isBroadcasted = cursor.fetchone()
+    if isBroadcasted == None:
+        if msg.author == bot.user:
+            return
+        else:
+            broadEmbed = discord.Embed(title="Attention DoxBot users...", description="This is a message from dickey#6969 (bot owner). I have some news for y'all... DoxBot recently hit 75 servers, this means that the bot is available for verification. If the bot were to get verified by Discord, then it would be able to join more servers and get a little check mark next to it's name. **Unfortunatly, Discord denied our verification request.** This means that we are currently limited to joining 100 servers and can't grow past that. This is obviously bad. Our only real option is to make a new bot and hope Discord gives us another shot at verification. This new bot will be the exact same code and there will be no data loss. **The old DoxBot will be shutting down soon, please invite the new bot at by clicking [Here](https://doxbot.xyz/invite).** You can kick this old bot when you invite the new one. I'm sorry for the any inconvenience. Thank you for choosing DoxBot", color=discord.Color.red())
+            broadEmbed.add_field(name='Please add new DoxBot Here...', value='[Click Here](https://doxbot.xyz/invite) -- https://doxbot.xyz/invite', inline=False)
+            broadEmbed.add_field(name='For more info...', value='[Click Here](https://doxbot.xyz/server) -- https://doxbot.xyz/server', inline=False)
+            await msg.channel.send(embed=broadEmbed)
+            cursor.execute(f"INSERT INTO `dont_broad` (`guild_id`) VALUES ('{guildID}')")
+            db.commit()
+            print(f"Brodcasted to {guildID}")
+            pass
+    else:
+        pass
+    
     # word game
     if msg.author == bot.user:
         pass
@@ -5495,7 +5514,7 @@ async def biapprove(ctx, ideaid, **reason):
                         await ctx.send(f"Idea **#{ideaid}** has been approved!")
 
         else:
-            await ctx.send("Only the bot owner (PapaRaG3#6969) can use that command!")
+            await ctx.send("Only the bot owner (dickey#6969) can use that command!")
 
 @biapprove.error
 async def biapprove_error(ctx, error):
@@ -5516,7 +5535,7 @@ async def bideny(ctx, ideaid, *, reason):
         await ctx.send("That ID doesn't exist! Please check the ID and try again!")
     else:
         if ctx.author.id != owner_id:
-            await ctx.send("Only the bot owner (PapaRaG3#6969) can use that command!")
+            await ctx.send("Only the bot owner (dickey#6969) can use that command!")
         else:
             cursor.execute(f"SELECT user_id FROM userSuggestions WHERE idea_id = '{ideaid}'")
             userIDUF = cursor.fetchone()
@@ -5785,7 +5804,7 @@ async def wordinfo(ctx):
         return
     else:
         pass
-    embed = discord.Embed(title="Word Game Info", description="The word game is simple, in the designated channel (found with `wordchan`) one user will send a word then the next user will have to start their word with the last letter of the word before. Example: PapaRaG3: Dog DoxBot: God PapaRaG3: Dude. And so on", color=discord.Color.random())
+    embed = discord.Embed(title="Word Game Info", description="The word game is simple, in the designated channel (found with `wordchan`) one user will send a word then the next user will have to start their word with the last letter of the word before. Example: dickey: Dog DoxBot: God dickey: Dude. And so on", color=discord.Color.random())
     embed.add_field(name="Commands (for more info use `help [command]`)", value="`setwordchan [channel]`, `wordchan`, `wordhigh`")
     await ctx.send(embed=embed)
     cursor.execute("SELECT used FROM commands WHERE name = 'wordinfo'")
@@ -8922,7 +8941,7 @@ async def s_stats(ctx):
     embed.add_field(name="Mem. Usage:", value=f"{mem}%", inline=True)
     embed.add_field(name="Ping:", value=f"{ping}ms", inline=True)
     embed.add_field(name="Library:", value="Discord.py", inline=True)
-    embed.add_field(name="Owner:", value="PapaRaG3#6969", inline=True)
+    embed.add_field(name="Owner:", value="dickey#6969", inline=True)
     await ctx.send(embed=embed)
     cursor.execute("SELECT used FROM commands WHERE name = 'stats'")
     used = cursor.fetchone()
