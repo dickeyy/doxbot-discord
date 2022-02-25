@@ -15,6 +15,7 @@ const axios = require('axios').default
 const reddit = require('reddit.images')
 const { RandomPHUB } = require('discord-phub');
 const nsfw = new RandomPHUB(unique = true);
+const giphy = require('giphy-api')(process.env.GIPHY_API);
 
 // Process errors
 process.on('uncaughtException', function (error) {
@@ -25,10 +26,10 @@ dotenv.config();
 
 // DB Stuff
 const db = mysql.createConnection({
-    host: process.env.HOST,
-    user: process.env.USER,
+    host: "na01-sql.pebblehost.com",
+    user: "customer_179919_doxbotdb",
     password: process.env.PASSWORD,
-    database: process.env.DATABASE,
+    database: "customer_179919_doxbotdb",
 });
 db.connect((err) => {
     if (err) throw err;
@@ -69,6 +70,7 @@ const commands = [
     { name: 'dog', description: 'Get a random picture of a dog from Reddit' },
     { name: 'cat', description: 'Get a random picture of a cat from Reddit' },
     { name: 'cstats', description: 'See how many times a command has been run', options: [{ name: 'command', description: 'What command do you want stats on', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    { name: 'gif', description: 'Get a random gif from GIPHY', options: [{ name: 'search', description: 'Search for a category of gifs', required: false, type: Constants.ApplicationCommandOptionTypes.STRING }] },
 ]; 
 
 // Register slash commands
@@ -79,7 +81,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
     console.log('Started refreshing application (/) commands.');
 
     await rest.put(
-        Routes.applicationGuildCommands(process.env.APP_ID, '731445738290020442'),
+        Routes.applicationGuildCommands(process.env.APP_ID, '731445738290020442', '801360477984522260'),
+        { body: commands },
+        // Routes.applicationCommands(process.env.APP_ID),
+        // {body: commands},
+    );
+
+    await rest.put(
+        Routes.applicationGuildCommands(process.env.APP_ID, '801360477984522260'),
         { body: commands },
         // Routes.applicationCommands(process.env.APP_ID),
         // {body: commands},
@@ -288,6 +297,15 @@ client.on('interactionCreate', async interaction => {
     if (commandName === 'cstats') {
         const command = options.getString('command')
         cstatsCmd(user,guild,command,function(embed) {
+            interaction.reply({
+                embeds: [embed]
+            })
+        })
+    }
+
+    if (commandName === 'gif') {
+        const search = options.getString('search')
+        gifCmd(user,guild,search,function(embed) {
             interaction.reply({
                 embeds: [embed]
             })
@@ -800,6 +818,34 @@ function cstatsCmd(user, guild, command, callback) {
             })
         })
     }
+}
+
+// Giphy command
+function gifCmd(user, guild, search, callback) {
+    const cmdName = 'gif'
+    if (search === null) {
+        search = 'random'
+    }
+    giphy.search({
+        q: search,
+        rating: 'g',
+        limit: 5
+    }, function (err, res) {
+        if (err) {
+            throw err
+        }
+        
+        const resNum = Math.round(Math.random() * res.data.length)
+        const resFinal = res.data[resNum]
+
+        const embed = new MessageEmbed()
+            .setTitle(resFinal.title)
+            .setURL(resFinal.url)
+            .setColor('RANDOM')
+            .setImage(`https://media.giphy.com/media/${resFinal.id}/giphy.gif`)
+            .setFooter({ text: `By: ${resFinal.user}`, iconURL: resFinal.user.avatar_url })
+        return callback(embed)
+    });
 }
 
 // Run bot
