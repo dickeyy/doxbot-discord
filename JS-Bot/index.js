@@ -16,6 +16,9 @@ const reddit = require('reddit.images')
 const { RandomPHUB } = require('discord-phub');
 const nsfw = new RandomPHUB(unique = true);
 const giphy = require('giphy-api')(process.env.GIPHY_API);
+const { getdadjoke } = require('get-dadjoke');
+const { GoogleTranslator } = require('@translate-tools/core/translators/GoogleTranslator')
+const {Translate} = require('@google-cloud/translate').v2;
 
 // Process errors
 process.on('uncaughtException', function (error) {
@@ -71,7 +74,13 @@ const commands = [
     { name: 'cat', description: 'Get a random picture of a cat from Reddit' },
     { name: 'cstats', description: 'See how many times a command has been run', options: [{ name: 'command', description: 'What command do you want stats on', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
     { name: 'gif', description: 'Get a random gif from GIPHY', options: [{ name: 'search', description: 'Search for a category of gifs', required: false, type: Constants.ApplicationCommandOptionTypes.STRING }] },
-    { name: 'socialset', description: 'Add a social media to your public Socials Profile', options: [{ name: 'social', description: 'The name of the social media (e.g. Twitter)', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }, { name: 'username', description: 'Your username on the social media chosen', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }]},
+    // { name: 'socialset', description: 'Add a social media to your public Socials Profile', options: [{ name: 'social', description: 'The name of the social media (e.g. Twitter)', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }, { name: 'username', description: 'Your username on the social media chosen', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }]},
+    { name: 'dadjoke', description: 'Get a random dad joke' },
+    { name: 'translate', description: 'Translate any message to any language', options: [{ name: 'lang-abbreviated', description: 'The abbreviated language code you want to translate to (spanish -> es)', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }, { name: 'message', description: 'The message you want translated', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    { name: 'say', description: 'Have DoxBot say whatever you want', options: [{ name: 'message', description: 'The message you want DoxBot to say', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    { name: 'roast', description: 'Make DoxBot send a roast (Can be directed at someone)', options: [{ name: 'user', description: 'The user you want DoxBot to roast', required: false, type: Constants.ApplicationCommandOptionTypes.USER }] },
+    { name: 'qr', description: 'Generate a QR code for any website', options: [{ name: 'url', description: 'The URL you want a QR code for', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    { name: 'rcolor', description: 'Generate a random color' },
 ]; 
 
 // Register slash commands
@@ -318,6 +327,51 @@ client.on('interactionCreate', async interaction => {
         const socName = options.getString('username')
         interaction.reply ({
             embeds: [socSetCmd(user,guild,social,socName)]
+        })
+    }
+
+    if (commandName == 'dadjoke') {
+        interaction.reply({
+            embeds:[await dadJokeCmd(user,guild)]
+        })
+    }
+
+    if (commandName == 'translate') {
+        const toLang = options.getString('lang-abbreviated')
+        const message = options.getString('message')
+        await translateCmd(user,guild,toLang,message,function(embed) {
+            interaction.reply({
+                embeds: [embed]
+            })
+        })
+    }
+
+    if (commandName == 'say') {
+        const message = options.getString('message')
+        interaction.reply({
+            content: sayCmd(user,guild,message)
+        })
+    }
+
+    if (commandName == 'roast') {
+        const roastUser = options.getUser('user')
+        roastCmd(user,guild,roastUser,function(embed) {
+            interaction.reply({
+                embeds: [embed]
+            })
+        })
+    }
+
+    if (commandName == 'qr') {
+        const url = options.getString('url')
+        interaction.reply({
+            embeds: [qrCmd(user,guild,url)]
+        })
+    }
+
+    if (commandName == 'rcolor') {
+        interaction.reply({
+            embeds: [await rcolorCmd(user,guild)]
         })
     }
 });
@@ -859,6 +913,7 @@ function gifCmd(user, guild, search, callback) {
 
 // Socials System
 // Socials Set
+// TODO Finish this command lmao
 function socSetCmd(user, guild, social, socName) {
     const cmdName = 'set'
     const soc = social.toLowerCase()
@@ -876,6 +931,127 @@ function socSetCmd(user, guild, social, socName) {
     const embed = new MessageEmbed()
         .setTitle('Pog')
     cmdRun(cmdName, user)
+    return embed
+}
+
+// Dad Joke Command
+async function dadJokeCmd(user, guild) {
+    const cmdName = 'dadjoke'
+
+    const joke = await getdadjoke()
+    const embed = new MessageEmbed()
+        .setTitle(joke)
+        .setColor('RANDOM')
+    cmdRun(cmdName, user)
+    return embed
+}
+
+// Affirmation command
+// TODO Find an api for affirmations 
+
+// Translate Command
+async function translateCmd(user, guild, toLang, message, callback) {
+    const cmdName = 'translate'
+
+    if (toLang.length > 3) {
+        const embed = new MessageEmbed()
+            .setTitle('Not a valid language abbreviation')
+            .setDescription("Look at a list of languages [Here](https://cloud.google.com/translate/docs/languages)")
+            .setColor('RED')
+            return callback(embed)
+    } else {
+        const CREDENTIALS = JSON.parse(process.env.TRANSLATE_CRED)
+        const translate = new Translate(trasnlateConfig={
+            credentials: CREDENTIALS,
+            projectId: CREDENTIALS.project_id
+        });
+    
+        let [translations] = await translate.translate(message, toLang);
+        translations = Array.isArray(translations) ? translations : [translations];
+        translations.forEach((translation, i) => {
+            const embed = new MessageEmbed()
+                .setTitle(translation)
+                .setDescription(message)
+                .setColor('GREEN')
+                .setFooter({text: `Lang: ${toLang}`})
+                return callback(embed)
+        });
+    }
+
+    cmdRun(cmdName, user)
+}
+
+// Say command
+function sayCmd(user,guild,message) {
+    const cmdName = 'say'
+    cmdRun(cmdName,user)
+    return message
+}
+
+// Roast Command
+async function roastCmd(user,guild,roastUser,callback) {
+    const cmdName = 'roast'
+    const data = await axios({
+        method: 'get',
+        url: 'https://insult.mattbas.org/api/insult.json',
+        responseType: 'json'
+    })
+    const roastRes = data['data'] 
+    if (roastUser == null) {
+        const embed = new MessageEmbed()
+        .setTitle(roastRes['insult'])
+        .setColor('RED')
+        cmdRun(cmdName,user)
+        return callback(embed)
+    } else {
+        const embed = new MessageEmbed()
+        .setTitle(`${roastUser.username} ${roastRes['insult']}`)
+        .setColor('RED')
+        cmdRun(cmdName,user)
+        return callback(embed)
+    }
+}
+
+// QR Code command
+function qrCmd(user,guild,url) {
+    const cmdName = 'qr'
+
+    const embed = new MessageEmbed()
+    .setTitle('Original URL')
+    .setURL(url)
+    .setImage(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${url}`)
+    
+    cmdRun(cmdName,user)
+    return embed
+}
+
+// random color command
+async function rcolorCmd(user,guild) {
+    const cmdName = 'rcolor'
+
+    const r = Math.round(Math.random() * 256)
+    const g = Math.round(Math.random() * 256)
+    const b = Math.round(Math.random() * 256)
+    const rgb = `(${r},${g},${b})`
+
+    const data = await axios({
+        method: 'get',
+        url: `https://www.thecolorapi.com/id?rgb=rgb${rgb}`,
+        responseType: 'json'
+    })
+    const res = data['data']
+    const hexClean = res['hex']['clean']
+    const hex = res['hex']['value']
+    const name = res['name']['value']
+
+    const embed = new MessageEmbed()
+    .setTitle(name)
+    .setURL(`https://www.color-hex.com/color/${hexClean}`)
+    .setDescription(hex)
+    .setImage(`https://singlecolorimage.com/get/${hexClean}/125x125`)
+    .setColor(hex)
+
+    cmdRun(cmdName,user)
     return embed
 }
 
