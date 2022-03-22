@@ -71,6 +71,7 @@ const commands = [
     { name: 'cat', description: 'Get a random picture of a cat from Reddit' },
     { name: 'cstats', description: 'See how many times a command has been run', options: [{ name: 'command', description: 'What command do you want stats on', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
     { name: 'gif', description: 'Get a random gif from GIPHY', options: [{ name: 'search', description: 'Search for a category of gifs', required: false, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    { name: 'socialset', description: 'Add a social media to your public Socials Profile', options: [{ name: 'social', description: 'The name of the social media (e.g. Twitter)', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }, { name: 'username', description: 'Your username on the social media chosen', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }]},
 ]; 
 
 // Register slash commands
@@ -309,6 +310,14 @@ client.on('interactionCreate', async interaction => {
             interaction.reply({
                 embeds: [embed]
             })
+        })
+    }
+
+    if (commandName === 'socialset') {
+        const social = options.getString('social')
+        const socName = options.getString('username')
+        interaction.reply ({
+            embeds: [socSetCmd(user,guild,social,socName)]
         })
     }
 });
@@ -839,13 +848,35 @@ function gifCmd(user, guild, search, callback) {
         const resFinal = res.data[resNum]
 
         const embed = new MessageEmbed()
-            .setTitle(resFinal.title)
+            .setTitle(`${resFinal.title}`)
             .setURL(resFinal.url)
             .setColor('RANDOM')
             .setImage(`https://media.giphy.com/media/${resFinal.id}/giphy.gif`)
-            .setFooter({ text: `By: ${resFinal.user}`, iconURL: resFinal.user.avatar_url })
+        cmdRun(cmdName, user)
         return callback(embed)
     });
+}
+
+// Socials System
+// Socials Set
+function socSetCmd(user, guild, social, socName) {
+    const cmdName = 'set'
+    const soc = social.toLowerCase()
+
+    if (soc == 'twitter' || soc == 'instagram' || soc == 'tiktok' || soc == 'snapchat' || soc == 'spotify' || soc == 'youtube' || soc == 'twitch' || soc == 'steam' || soc == 'xbox' || soc == 'playstation' || soc == 'reddit') {
+        db.query(`SELECT ${soc} FROM socials WHERE user_id = ${user.id} AND guild_id = ${guild.id}`, (err,results) => {
+            if (results) {
+                db.query(`INSERT INTO socials ('user_id', 'guild_id', '${soc}') VALUES ('${user.id}','${guild.id}','${socName}')`)
+            } else {
+                console.log(results, 2)
+            }
+        })
+    }
+     
+    const embed = new MessageEmbed()
+        .setTitle('Pog')
+    cmdRun(cmdName, user)
+    return embed
 }
 
 // Run bot
