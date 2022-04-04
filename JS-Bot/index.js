@@ -17,8 +17,8 @@ const { RandomPHUB } = require('discord-phub');
 const nsfw = new RandomPHUB(unique = true);
 const giphy = require('giphy-api')(process.env.GIPHY_API);
 const { getdadjoke } = require('get-dadjoke');
-const { GoogleTranslator } = require('@translate-tools/core/translators/GoogleTranslator')
 const {Translate} = require('@google-cloud/translate').v2;
+const TmSh = require('tomato-url-short');
 
 // Process errors
 process.on('uncaughtException', function (error) {
@@ -81,6 +81,14 @@ const commands = [
     { name: 'roast', description: 'Make DoxBot send a roast (Can be directed at someone)', options: [{ name: 'user', description: 'The user you want DoxBot to roast', required: false, type: Constants.ApplicationCommandOptionTypes.USER }] },
     { name: 'qr', description: 'Generate a QR code for any website', options: [{ name: 'url', description: 'The URL you want a QR code for', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
     { name: 'rcolor', description: 'Generate a random color' },
+    { name: 'shorturl', description: 'Generate a shortened URL for any website', options: [{ name: 'url', description:'The URL you want shortened', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    { name: 'lovetest', description: 'Test the love between you and another user', options: [{ name: 'user', description: 'The user who you want to test your love of', required: true, type: Constants.ApplicationCommandOptionTypes.USER }] },
+    { name: 'todayinhistory', description: 'Get a historical fact about something that happened today in the past' },
+    { name: 'numberfact', description: 'Get a random fact about a number', options: [{ name: 'number', description: 'The number you wantto get a fact about', required: true, type: Constants.ApplicationCommandOptionTypes.INTEGER }] },
+    { name: 'weather', description: 'Get the weather for any city', options: [{ name: 'location', description: 'The location that you want the weather of', required: true, type: Constants.ApplicationCommandOptionTypes.STRING }] },
+    // { name: 'sex', description: 'Ask any user to do the dirty with you', options: [{ name: 'user', description: 'The user you want to get freaky with', required: true, type: Constants.ApplicationCommandOptionTypes.USER }] },
+    // Economy commands
+    { name: 'balance', description: 'Get your balance or someone elses balance', options: [{ name: 'user', description: 'The user you want to check the balance of', required: false, type: Constants.ApplicationCommandOptionTypes.USER }] },
 ]; 
 
 // Register slash commands
@@ -92,13 +100,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
 
     await rest.put(
         Routes.applicationGuildCommands(process.env.APP_ID, '731445738290020442', '801360477984522260'),
-        { body: commands },
-        // Routes.applicationCommands(process.env.APP_ID),
-        // {body: commands},
-    );
-
-    await rest.put(
-        Routes.applicationGuildCommands(process.env.APP_ID, '801360477984522260'),
         { body: commands },
         // Routes.applicationCommands(process.env.APP_ID),
         // {body: commands},
@@ -372,6 +373,60 @@ client.on('interactionCreate', async interaction => {
     if (commandName == 'rcolor') {
         interaction.reply({
             embeds: [await rcolorCmd(user,guild)]
+        })
+    }
+
+    if (commandName == 'shorturl') {
+        const url = options.getString('url')
+        shortUrlCmd(user,guild,url,function(embed) {
+            interaction.reply({
+                embeds: [embed]
+            })
+        })
+    }
+
+    if (commandName == 'lovetest') {
+        const user2 = options.getUser('user')
+        interaction.reply({
+            embeds: [await loveTestCmd(user,guild,user2)] 
+        })
+    }
+
+    if (commandName == 'todayinhistory') {
+        interaction.reply({
+            embeds: [await tihCmd(user,guild)]
+        })
+    }
+
+    if (commandName == 'numberfact') {
+        const num = options.getInteger('number')
+        interaction.reply({
+            embeds: [await numFactCmd(user,guild,num)]
+        })
+    }
+
+    if (commandName == 'weather') {
+        const location = options.getString('location')
+        interaction.reply({
+            embeds: [await weatherCmd(user,guild,location)]
+        })
+    }
+
+    if (commandName == 'sex') {
+        const user2 = options.getUser('user')
+        interaction.reply({
+            content: `${user2.mention}, **${user.username}** Wants to do the nasty with you... do you consent?`,
+            components: [sexCmd(user,guild,user2)]
+        })
+    }
+
+    if (commandName == 'balance') {
+        const user2 = options.getUser('user')
+        balanceCmd(user,guild,user2,function (embed) {
+            interaction.reply({
+                embeds: [embed],
+                ephemeral: true,
+            })
         })
     }
 });
@@ -1053,6 +1108,252 @@ async function rcolorCmd(user,guild) {
 
     cmdRun(cmdName,user)
     return embed
+}
+
+// Short URL 
+function shortUrlCmd(user,guild,url,callback) {
+    const cmdName = 'shorturl'
+
+    TmSh.shorten(url, function(res, err) {
+        const embed = new MessageEmbed()
+        .setTitle('Shortened URL')
+        .setURL(`https://${res}`)
+        .setColor('GREEN')
+        return callback(embed)
+    });
+    cmdRun(cmdName,user)
+}
+
+// Love Test 
+async function loveTestCmd(user,guild,user2) {
+    const cmdName = 'lovetest'
+
+    const url = "https://love-calculator.p.rapidapi.com/getPercentage"
+    const headers = {
+        'x-rapidapi-key': process.env.RAPIDAPI,
+        'x-rapidapi-host': "love-calculator.p.rapidapi.com"
+    }
+    const querystring = {"fname":`${user2.username}`,"sname":`${user.username}`}
+
+    const request = await axios({
+        method: 'get',
+        url: url,
+        responseType: 'json',
+        headers: headers,
+        params: querystring
+    })
+    const res = request['data']
+    const percent = res['percentage']
+    const message = res['result']
+
+    const embed = new MessageEmbed()
+    .setTitle(message)
+    .setDescription(`Love: **${percent}%**`)
+    .setColor('#FF00D4')
+
+    cmdRun(cmdName, user)
+    return embed
+}
+
+// Today in history
+async function tihCmd(user,guild) {
+    const cmdName = 'todayinhistory'
+
+    const headers = {
+        'x-rapidapi-key': process.env.RAPIDAPI,
+        'x-rapidapi-host': "numbersapi.p.rapidapi.com"      
+    }
+    const dateO = new Date();
+    const day = dateO.getDate()
+    const month = dateO.getMonth() + 1
+    const date = `${month}/${day}`
+    const url = `https://numbersapi.p.rapidapi.com/${date}/date`
+    const querystring = {"fragment":"false","json":"true"}
+
+    const request = await axios({
+        method: 'get',
+        url: url,
+        responseType: 'json',
+        headers: headers,
+        params: querystring
+    })
+    const res = request['data']
+    const fact = res['text']
+    const year = res['year']
+
+    const embed = new MessageEmbed()
+    .setTitle('Today in History:')
+    .setDescription(`**In ${year},** ${fact}`)
+    .setColor('RANDOM')
+
+    cmdRun(cmdName, user)
+    return embed
+}
+
+// Number fact
+async function numFactCmd(user,guild,num) {
+    const cmdName = 'numfact'
+
+    const url = `https://numbersapi.p.rapidapi.com/${num}/math`
+    const headers = {
+        'x-rapidapi-key': process.env.RAPIDAPI,
+        'x-rapidapi-host': "numbersapi.p.rapidapi.com"
+    }
+    const querystring = {"fragment":"false","json":"true"}
+    const request = await axios({
+        method: 'get',
+        url: url,
+        responseType: 'json',
+        headers: headers,
+        params: querystring
+    })
+    
+    const res = request['data']
+    const fact = res['text']
+
+    const embed = new MessageEmbed()
+    .setTitle('Number Fact:')
+    .setDescription(`**${num}:** ${fact}`)
+    .setColor('RANDOM')
+    
+    cmdRun(cmdName,user)
+    return embed
+}
+
+// Weather Command
+async function weatherCmd(user,guild,location) {
+    const cmdName = 'weather'
+
+    const url = "https://weatherapi-com.p.rapidapi.com/current.json"
+    const querystring = {"q":`${location} `}
+    const headers = {
+        'x-rapidapi-key': process.env.RAPIDAPI,
+        'x-rapidapi-host': "weatherapi-com.p.rapidapi.com"
+    }
+    const request = await axios({
+        method: 'get',
+        url: url,
+        responseType: 'json',
+        headers: headers,
+        params: querystring
+    })
+    const res = request['data']
+    const locName = res['location']['name']
+    const locReg = res['location']['region']
+    const locCoun = res['location']['country']
+    const tempC = res['current']['temp_c']
+    const tempF = res['current']['temp_f']
+    const cond = res['current']['condition']['text']
+    const condIcon = res['current']['condition']['icon']
+    const windMph = res['current']['wind_mph']
+    const windKph = res['current']['wind_kph']
+    const windDir = res['current']['wind_dir']
+    const humid = res['current']['humidity']
+    const cloud = res['current']['cloud']
+    const feelsC = res['current']['feelslike_c']
+    const feelsF = res['current']['feelslike_f']
+    const visKm = res['current']['vis_km']
+    const visM = res['current']['vis_miles']
+    const uv = res['current']['uv']
+
+    const embed = new MessageEmbed()
+    .setTitle(`Weather: ${locName}, ${locReg}, ${locCoun}`)
+    .setThumbnail(`https:${condIcon}`)
+    .setColor("BLUE")
+    .addField("Temp:", `${tempC}℃ / ${tempF} ℉`, true)
+    .addField("Condition:", `${cond}`, true)
+    .addField("Wind:", `${windKph} Kmph / ${windMph} Mph | ${windDir}`, true)
+    .addField("Feels Like:", `${feelsC}℃ / ${feelsF}℉`, true)
+    .addField("Humidity:", `${humid}%`, true)
+    .addField("Cloud Cov.", `${cloud}%`, true)
+    .addField("Visibility:", `${visKm} Km / ${visM} Mi`, true)
+    .addField("UV Index:", `${uv}`, true)
+
+    cmdRun(cmdName, user)
+    return embed
+}
+
+// TODO Notes Systems
+
+// Sex
+// TODO Make this work
+// function sexCmd(user, guild, user2) {
+//     const cmdName = 'sex'
+
+//     const row = new MessageActionRow()
+//     .addComponents(
+//         new MessageButton()
+//         .setCustomId('yes')
+//         .setLabel('Yes!')
+//         .setStyle('PRIMARY'),
+
+//         new MessageButton()
+//         .setCustomId('no')
+//         .setLabel('No!')
+//         .setStyle('DANGER')
+
+//     )
+
+//     client.on('interactionCreate', interaction => {
+//         if (!interaction.isButton()) return;
+
+//         if (interaction['customId'] == 'yes' && interaction['user']['id'] == user2.id ) {
+//             const yesList = [`Congrats **${user.username}**, **${user2.username}** said yes! Now get to fuckin' you two!`, `Umm this has got to be a bug... **${user2.username}** said yes? No shot.`, `Everyone I'd like to formally announce that **${user2.username}** and **${user.username}** are doin' the sex!`, `**${user.username}**, **${user2.username}** said yes! Ah they grow up so fast. I remember when you used to put your lil tiny pp in your teddy bear`, `Well... **${user2.username}** did say yes but **${user.username}** couldn't get it up. F`]
+//             const yesNum = Math.round(Math.random() * yesList.length)
+//             console.log(yesNum)
+//             interaction.reply(`${yesList[yesNum]}`)
+
+//         } else if (interaction['customId'] == 'no') {
+//             interaction.reply('no')
+//         }
+//     });
+    
+//     return row
+// }
+
+// Economy System
+// Balance command
+async function balanceCmd(user,guild,user2,callback) {
+    const cmdName = 'balance'
+
+    if (user2 == null) {
+        db.query(`SELECT coins FROM econ WHERE user_id = ${user.id} AND guild_id = ${guild.id}`, (err,results) => {
+            if (results[0] != undefined) {
+                const coins = results[0]['coins']
+                const embed = new MessageEmbed()
+                .setTitle(`${user.username}'s Balance:`)
+                .setDescription(`You have <:simp_coin:824720566241853460>**${coins}** DXC.`)
+                .setColor('#ff6666')
+                cmdRun(cmdName,user)
+                return callback(embed)
+            } else {
+                const embed = new MessageEmbed()
+                .setTitle('You have no DoxCoins')
+                .setColor("RED")
+                cmdRun(cmdName,user)
+                return callback(embed)
+            }
+        })
+    } else {
+        db.query(`SELECT coins FROM econ WHERE user_id = ${user2.id} AND guild_id = ${guild.id}`, (err,results) => {
+            if (results[0] != undefined) {  
+                console.log(results[0])
+                const coins = results[0]['coins']
+                const embed = new MessageEmbed()
+                .setTitle(`${user2.username}'s Balance:`)
+                .setDescription(`They have <:simp_coin:824720566241853460>**${coins}** DXC.`)
+                .setColor('#ff6666')
+                cmdRun(cmdName,user)
+                return callback(embed)
+            } else {
+                const embed = new MessageEmbed()
+                .setTitle('They have no DoxCoins')
+                .setColor("RED")
+                cmdRun(cmdName,user)
+                return callback(embed)
+            }
+        })
+    }
 }
 
 // Run bot
