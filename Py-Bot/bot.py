@@ -41,14 +41,14 @@ from discord_slash import SlashCommand
 
 load_dotenv()
 
-# database stuff
-db = mysql.connector.connect(
-    host=os.getenv("HOST"),
-    user=os.getenv("USER"),
-    password=os.getenv("PASSWORD"),
-    database=os.getenv("DATABASE")
-)
-cursor = db.cursor(buffered=True)
+# # database stuff
+# db = mysql.connector.connect(
+#     host=os.getenv("HOST"),
+#     user=os.getenv("USER"),
+#     password=os.getenv("PASSWORD"),
+#     database=os.getenv("DATABASE")
+# )
+# cursor = db.cursor(buffered=True)
 
 # get prefix
 def get_prefix(bot, message):
@@ -3497,155 +3497,158 @@ async def on_message(msg):
     userMen = msg.author.mention
     user = msg.author
     # prefix
-    cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(guildID))
-    preUF = cursor.fetchone()
-    if preUF == None or preUF == ('',):
-        cursor.execute("INSERT INTO `prefixes` (`guild_id`, `prefix`) VALUES ('" + str(guildID) + "', '$')")
-        db.commit()
-        cupGuild = msg.guild.name
-        print(f"Added guild to DB -- {cupGuild}")
-        return
-    elif bot.user.mentioned_in(msg):
-        if "@everyone" in msg.content:
-            return
-        else:
-            pass
-        for pre in preUF:
-            embedPre = discord.Embed(title=f"Prefix for this server: {pre}")
-            await msg.channel.send(embed=embedPre)
+    # cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = " + str(guildID))
+    # preUF = cursor.fetchone()
+    # if preUF == None or preUF == ('',):
+    #     cursor.execute("INSERT INTO `prefixes` (`guild_id`, `prefix`) VALUES ('" + str(guildID) + "', '$')")
+    #     db.commit()
+    #     cupGuild = msg.guild.name
+    #     print(f"Added guild to DB -- {cupGuild}")
+    #     return
+    # elif bot.user.mentioned_in(msg):
+    #     if "@everyone" in msg.content:
+    #         return
+    #     else:
+    #         pass
+    #     for pre in preUF:
+    #         embedPre = discord.Embed(title=f"Prefix for this server: {pre}")
+    #         await msg.channel.send(embed=embedPre)
 
     # stuff to announce a message to all servers
-    cursor.execute(f"SELECT guild_id FROM dont_broad WHERE guild_id = {guildID}")
-    isBroadcasted = cursor.fetchone()
+    # isBroadcasted = cursor.fetchone()
+    isBroadcasted = None
     if isBroadcasted == None:
         if msg.author == bot.user:
             return
         else:
-            broadEmbed = discord.Embed(title="Attention DoxBot users...", description="This is a message from dickey#6969 (bot owner). I have some news for y'all... DoxBot recently hit 75 servers, this means that the bot is available for verification. If the bot were to get verified by Discord, then it would be able to join more servers and get a little check mark next to it's name. **Unfortunatly, Discord denied our verification request.** This means that we are currently limited to joining 100 servers and can't grow past that. This is obviously bad. Our only real option is to make a new bot and hope Discord gives us another shot at verification. This new bot will be the exact same code and there will be no data loss. **The old DoxBot will be shutting down soon, please invite the new bot at by clicking [Here](https://doxbot.xyz/invite).** You can kick this old bot when you invite the new one. I'm sorry for the any inconvenience. Thank you for choosing DoxBot", color=discord.Color.red())
-            broadEmbed.add_field(name='Please add new DoxBot Here...', value='[Click Here](https://doxbot.xyz/invite) -- https://doxbot.xyz/invite', inline=False)
-            broadEmbed.add_field(name='For more info...', value='[Click Here](https://doxbot.xyz/server) -- https://doxbot.xyz/server', inline=False)
-            await msg.channel.send(embed=broadEmbed)
-            cursor.execute(f"INSERT INTO `dont_broad` (`guild_id`) VALUES ('{guildID}')")
-            db.commit()
-            print(f"Brodcasted to {guildID}")
+            broadEmbed = discord.Embed(title="Attention DoxBot users...", description="**This is a message from dickey#6969**\nHey ya'll, as you likely know DoxBot is [dead](https://doxbot.xyz/dead). I will be shutting down the servers in the next 24 hours. Please replace DoxBot with its replacement [Seeds](https://seedsbot.xyz/invite). Seeds is nearly the same as DoxBot and it has recently been verified by Discord (meaning it can join unlimited servers unlike DoxBot). Don't worry, Seeds is my bot I am not sending you all to some other developer, I will still be developing Seeds and I love it. You can expect the same quality and features in Seeds as you saw in Dox.\n\nThank you all for using DoxBot. I love you. (Also join the seeds support server!)", color=discord.Color.red())
+            broadEmbed.add_field(name='Please add Seeds Here...', value='[Click Here](https://seedsbot.xyz/invite) -- https://seedsbot.xyz/invite', inline=False)
+            broadEmbed.add_field(name='For more info...', value='[Click Here](https://doxbot.xyz/dead) -- https://doxbot.xyz/dead', inline=False)
+
+            try:
+                await msg.channel.send(embed=broadEmbed)
+                print(f"Brodcasted to {guildID}")
+            except:
+
+                pass
             pass
     else:
         pass
     
     # word game
-    if msg.author == bot.user:
-        pass
-    else:
-        cursor.execute(f"SELECT channel_id FROM wordGame WHERE guild_id = {guildID}")
-        chanIDUF = cursor.fetchone()
-        if chanIDUF == None:
-            pass
-        else:
-            for wordChanID in chanIDUF:
-                if channelID == wordChanID:
-                    cursor.execute(f"SELECT lastuser_id FROM wordGame WHERE guild_id = {guildID} AND channel_id = {wordChanID}")
-                    lastUserIDUF = cursor.fetchone()
-                    for lastUserID in lastUserIDUF:
-                        cursor.execute(f"SELECT lastletter FROM wordGame WHERE guild_id = {guildID}")
-                        letterUF = cursor.fetchone()
-                        for lastLetter in letterUF:
-                            cursor.execute(f"SELECT count FROM wordGame WHERE guild_id = {guildID}")
-                            countUF = cursor.fetchone()
-                            for count in countUF:
-                                cursor.execute(f"SELECT highscore FROM wordGame WHERE guild_id = {guildID}")
-                                highUF = cursor.fetchone()
-                                for high in highUF:
-                                    msg_str = str(msg.content)
-                                    lastLet = msg_str[-1]
-                                    firstLet = msg_str[0]
-                                    if letterUF == ('',) and userID != lastUserID and count <= high:
-                                        count += 1
-                                        cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '{lastLet}', `lastuser_id` = {userID}, count = {count} WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
-                                        db.commit()
-                                        await msg.add_reaction("✅")
-                                        pass
-                                    elif firstLet == lastLetter and userID != lastUserID and count <= high:
-                                        count += 1
-                                        cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '{lastLet}', `lastuser_id` = {userID}, count = {count} WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
-                                        db.commit()
-                                        await msg.add_reaction("✅")
-                                        pass
-                                    elif firstLet == lastLetter and userID != lastUserID and count >= high:
-                                        count += 1
-                                        cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '{lastLet}', `lastuser_id` = {userID}, count = {count}, highscore = {count} WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
-                                        db.commit()
-                                        await msg.add_reaction("⭐")
-                                        pass
-                                    elif firstLet != lastLetter and userID != lastUserID:
-                                        cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '', `lastuser_id` = 1, `count` = 1 WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
-                                        db.commit()
-                                        await msg.add_reaction("❌")
-                                        await msg.channel.send(f"{userMen} **MESSED IT UP!! Your string was {count} words long!** Your word should have started with **{lastLetter}** rather than **{firstLet}**. Game restarted.")
-                                        pass
-                                    elif userID == lastUserID:
-                                        cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '', `lastuser_id` = 1, `count` = 1 WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
-                                        db.commit()
-                                        await msg.add_reaction("❌")
-                                        await msg.channel.send(f"{userMen} **MESSED IT UP!! Your string was {count} words long!** You can't go twice in a row! Game restarted.")
-                                        pass
+    # if msg.author == bot.user:
+    #     pass
+    # else:
+    #     cursor.execute(f"SELECT channel_id FROM wordGame WHERE guild_id = {guildID}")
+    #     chanIDUF = cursor.fetchone()
+    #     if chanIDUF == None:
+    #         pass
+    #     else:
+    #         for wordChanID in chanIDUF:
+    #             if channelID == wordChanID:
+    #                 cursor.execute(f"SELECT lastuser_id FROM wordGame WHERE guild_id = {guildID} AND channel_id = {wordChanID}")
+    #                 lastUserIDUF = cursor.fetchone()
+    #                 for lastUserID in lastUserIDUF:
+    #                     cursor.execute(f"SELECT lastletter FROM wordGame WHERE guild_id = {guildID}")
+    #                     letterUF = cursor.fetchone()
+    #                     for lastLetter in letterUF:
+    #                         cursor.execute(f"SELECT count FROM wordGame WHERE guild_id = {guildID}")
+    #                         countUF = cursor.fetchone()
+    #                         for count in countUF:
+    #                             cursor.execute(f"SELECT highscore FROM wordGame WHERE guild_id = {guildID}")
+    #                             highUF = cursor.fetchone()
+    #                             for high in highUF:
+    #                                 msg_str = str(msg.content)
+    #                                 lastLet = msg_str[-1]
+    #                                 firstLet = msg_str[0]
+    #                                 if letterUF == ('',) and userID != lastUserID and count <= high:
+    #                                     count += 1
+    #                                     cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '{lastLet}', `lastuser_id` = {userID}, count = {count} WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
+    #                                     db.commit()
+    #                                     await msg.add_reaction("✅")
+    #                                     pass
+    #                                 elif firstLet == lastLetter and userID != lastUserID and count <= high:
+    #                                     count += 1
+    #                                     cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '{lastLet}', `lastuser_id` = {userID}, count = {count} WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
+    #                                     db.commit()
+    #                                     await msg.add_reaction("✅")
+    #                                     pass
+    #                                 elif firstLet == lastLetter and userID != lastUserID and count >= high:
+    #                                     count += 1
+    #                                     cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '{lastLet}', `lastuser_id` = {userID}, count = {count}, highscore = {count} WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
+    #                                     db.commit()
+    #                                     await msg.add_reaction("⭐")
+    #                                     pass
+    #                                 elif firstLet != lastLetter and userID != lastUserID:
+    #                                     cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '', `lastuser_id` = 1, `count` = 1 WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
+    #                                     db.commit()
+    #                                     await msg.add_reaction("❌")
+    #                                     await msg.channel.send(f"{userMen} **MESSED IT UP!! Your string was {count} words long!** Your word should have started with **{lastLetter}** rather than **{firstLet}**. Game restarted.")
+    #                                     pass
+    #                                 elif userID == lastUserID:
+    #                                     cursor.execute(f"UPDATE `wordGame` SET `lastLetter` = '', `lastuser_id` = 1, `count` = 1 WHERE `guild_id` = {guildID} AND `channel_id` = {wordChanID}")
+    #                                     db.commit()
+    #                                     await msg.add_reaction("❌")
+    #                                     await msg.channel.send(f"{userMen} **MESSED IT UP!! Your string was {count} words long!** You can't go twice in a row! Game restarted.")
+    #                                     pass
 
-    # counting game
-    cursor.execute("SELECT count FROM counting WHERE guild_id = " + str(guildID))
-    result = cursor.fetchone()
-    if result == None:
-        pass
-    else:
-        for count in result:
-            cursor.execute("SELECT lastuser_id FROM counting WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-            lastUserUF = cursor.fetchone()
-            if lastUserUF == None:
-              pass
-            else:
-              for lastUser in lastUserUF:
-                  cursor.execute("SELECT channel_id FROM counting WHERE guild_id = '" + str(guildID) + "'")
-                  chanIDUF = cursor.fetchone()
-                  if chanIDUF == None:
-                    pass
-                  else:
-                    for chanID in chanIDUF:
-                        cursor.execute("SELECT highscore FROM counting WHERE guild_id = '" + str(guildID) + "'")
-                        high = cursor.fetchone()
-                        if high == None:
-                            pass
-                        else:
-                            for highS in high:
-                                if msg.author == bot.user:
-                                    pass
-                                else:
-                                    isNum = msg.content
-                                    try:
-                                        tmp = int(isNum)
-                                        if msg.content == f"{count}" and userID != lastUser and channelID == chanID:
-                                            if count >= highS and count > 1:
-                                                count += 1
-                                                cursor.execute("UPDATE counting SET count = '" + str(count) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                                cursor.execute("UPDATE counting SET lastuser_id = '" + str(userID) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                                cursor.execute("UPDATE counting SET highscore = '" + str(count) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                                db.commit()
-                                                await msg.add_reaction("⭐")
-                                                pass
-                                            else:
-                                                count += 1
-                                                cursor.execute("UPDATE counting SET count = '" + str(count) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                                cursor.execute("UPDATE counting SET lastuser_id = '" + str(userID) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                                db.commit()
-                                                await msg.add_reaction("✅")
-                                                pass
-                                        else:
-                                            cursor.execute("UPDATE counting SET count = '1' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                            cursor.execute("UPDATE counting SET lastuser_id = '1' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
-                                            db.commit()
-                                            await msg.add_reaction("❌")
-                                            await msg.channel.send(f"{userMen} **RUINED IT AT {count}!!** The next number is **1**")
-                                            pass
-                                    except:
-                                        pass
-    await bot.process_commands(msg)
+    # # counting game
+    # cursor.execute("SELECT count FROM counting WHERE guild_id = " + str(guildID))
+    # result = cursor.fetchone()
+    # if result == None:
+    #     pass
+    # else:
+    #     for count in result:
+    #         cursor.execute("SELECT lastuser_id FROM counting WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #         lastUserUF = cursor.fetchone()
+    #         if lastUserUF == None:
+    #           pass
+    #         else:
+    #           for lastUser in lastUserUF:
+    #               cursor.execute("SELECT channel_id FROM counting WHERE guild_id = '" + str(guildID) + "'")
+    #               chanIDUF = cursor.fetchone()
+    #               if chanIDUF == None:
+    #                 pass
+    #               else:
+    #                 for chanID in chanIDUF:
+    #                     cursor.execute("SELECT highscore FROM counting WHERE guild_id = '" + str(guildID) + "'")
+    #                     high = cursor.fetchone()
+    #                     if high == None:
+    #                         pass
+    #                     else:
+    #                         for highS in high:
+    #                             if msg.author == bot.user:
+    #                                 pass
+    #                             else:
+    #                                 isNum = msg.content
+    #                                 try:
+    #                                     tmp = int(isNum)
+    #                                     if msg.content == f"{count}" and userID != lastUser and channelID == chanID:
+    #                                         if count >= highS and count > 1:
+    #                                             count += 1
+    #                                             cursor.execute("UPDATE counting SET count = '" + str(count) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                             cursor.execute("UPDATE counting SET lastuser_id = '" + str(userID) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                             cursor.execute("UPDATE counting SET highscore = '" + str(count) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                             db.commit()
+    #                                             await msg.add_reaction("⭐")
+    #                                             pass
+    #                                         else:
+    #                                             count += 1
+    #                                             cursor.execute("UPDATE counting SET count = '" + str(count) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                             cursor.execute("UPDATE counting SET lastuser_id = '" + str(userID) + "' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                             db.commit()
+    #                                             await msg.add_reaction("✅")
+    #                                             pass
+    #                                     else:
+    #                                         cursor.execute("UPDATE counting SET count = '1' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                         cursor.execute("UPDATE counting SET lastuser_id = '1' WHERE guild_id = '" + str(guildID) + "' AND channel_id = '" + str(channelID) + "'")
+    #                                         db.commit()
+    #                                         await msg.add_reaction("❌")
+    #                                         await msg.channel.send(f"{userMen} **RUINED IT AT {count}!!** The next number is **1**")
+    #                                         pass
+    #                                 except:
+    #                                     pass
+    # await bot.process_commands(msg)
 
 # set prefix command
 @bot.command()
@@ -8962,61 +8965,61 @@ async def s_stats_error(ctx, error):
         await ctx.send(embed=embed)
 
 # dox slash
-@slash.slash(name="dox",
-            description="Use this to get 100% real info about someone wink wink.",
-            options=[
-                create_option(
-                    name="User",
-                    description="Who you want to dox, if left blank, you will be doxxed",
-                    option_type=2,
-                    required=False
-                )
-            ])
-async def s_dox(ctx, User: str = None):
-    guildID = ctx.guild.id
-    cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'dox'")
-    cmdCheck = cursor.fetchone()
-    if cmdCheck != None:
-        return
-    else:
-        pass
-    identity = getIdentity()
+# @slash.slash(name="dox",
+#             description="Use this to get 100% real info about someone wink wink.",
+#             options=[
+#                 create_option(
+#                     name="User",
+#                     description="Who you want to dox, if left blank, you will be doxxed",
+#                     option_type=2,
+#                     required=False
+#                 )
+#             ])
+# async def s_dox(ctx, User: str = None):
+#     guildID = ctx.guild.id
+#     cursor.execute(f"SELECT command FROM dis_cmds WHERE guild_id = {guildID} AND command = 'dox'")
+#     cmdCheck = cursor.fetchone()
+#     if cmdCheck != None:
+#         return
+#     else:
+#         pass
+#     identity = getIdentity()
 
-    if User == None:
-        userName = ctx.author.name
-    else:
-        userName = User
+#     if User == None:
+#         userName = ctx.author.name
+#     else:
+#         userName = User
 
-    embed = discord.Embed(title=f"Doxing {userName}...", color=discord.Color.red())
-    embed.add_field(name="Full Name:", value=identity.name, inline=False)
-    embed.add_field(name="Height:", value=identity.height + " / " + identity.heightcm + " cm", inline=False)
-    embed.add_field(name="Weight:", value=identity.weight + "lbs / " + identity.weightkg + "kg", inline=False)
-    embed.add_field(name="Birthday:", value=identity.birthday, inline=False)
-    embed.add_field(name="Address:", value=identity.address, inline=False)
-    embed.add_field(name="Coordinates:", value=identity.coords, inline=False)
-    embed.add_field(name="Email:", value=identity.email, inline=False)
-    embed.add_field(name="Phone Number:", value=identity.phone, inline=False)
-    embed.add_field(name="Discord Password:", value=identity.password, inline=False)
-    embed.add_field(name="SSN:", value=identity.ssn, inline=False)
-    embed.add_field(name="Credit Card:", value="Num: " + identity.card + " Exp: " + identity.expiration + " CVV: " + identity.cvv2, inline=False)
-    embed.timestamp = datetime.datetime.utcnow()
-    embed.set_footer(text=f"Requested by: {ctx.author} \u200b")
+#     embed = discord.Embed(title=f"Doxing {userName}...", color=discord.Color.red())
+#     embed.add_field(name="Full Name:", value=identity.name, inline=False)
+#     embed.add_field(name="Height:", value=identity.height + " / " + identity.heightcm + " cm", inline=False)
+#     embed.add_field(name="Weight:", value=identity.weight + "lbs / " + identity.weightkg + "kg", inline=False)
+#     embed.add_field(name="Birthday:", value=identity.birthday, inline=False)
+#     embed.add_field(name="Address:", value=identity.address, inline=False)
+#     embed.add_field(name="Coordinates:", value=identity.coords, inline=False)
+#     embed.add_field(name="Email:", value=identity.email, inline=False)
+#     embed.add_field(name="Phone Number:", value=identity.phone, inline=False)
+#     embed.add_field(name="Discord Password:", value=identity.password, inline=False)
+#     embed.add_field(name="SSN:", value=identity.ssn, inline=False)
+#     embed.add_field(name="Credit Card:", value="Num: " + identity.card + " Exp: " + identity.expiration + " CVV: " + identity.cvv2, inline=False)
+#     embed.timestamp = datetime.datetime.utcnow()
+#     embed.set_footer(text=f"Requested by: {ctx.author} \u200b")
 
-    await ctx.send(embed = embed)
+#     await ctx.send(embed = embed)
 
-    cursor.execute("SELECT used FROM commands WHERE name = 'dox'")
-    used = cursor.fetchone()
-    for num in used:
-        num += 1
-        cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'dox'")
-        db.commit()
-    cupGuild = ctx.guild.name
-    cupUser = ctx.author
-    print(f"Dox -- {cupGuild} by {cupUser}")
+#     cursor.execute("SELECT used FROM commands WHERE name = 'dox'")
+#     used = cursor.fetchone()
+#     for num in used:
+#         num += 1
+#         cursor.execute("UPDATE commands SET used = '" + str(num) + "' WHERE name = 'dox'")
+#         db.commit()
+#     cupGuild = ctx.guild.name
+#     cupUser = ctx.author
+#     print(f"Dox -- {cupGuild} by {cupUser}")
 
-# Run bot
-web_server()
-pub_tweet.start()
-print(db)
+# # Run bot
+# web_server()
+# pub_tweet.start()
+# print(db)
 print("Online")
 bot.run(os.getenv('TOKEN'))
